@@ -1,0 +1,181 @@
+.homepage { min-height: calc(100vh - var(--nav-h)); }
+
+.homepage-hero {
+  background: var(--azul);
+  padding: 40px 24px 36px;
+}
+.homepage-hero-inner {
+  max-width: 800px;
+  margin: 0 auto;
+}
+.hero-titulo {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 10px;
+  letter-spacing: -0.3px;
+}
+.hero-subtitulo {
+  font-size: 15px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 24px;
+}
+.hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.hero-stat { display: flex; flex-direction: column; }
+.hero-stat-num {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--verde);
+  line-height: 1;
+}
+.hero-stat-label { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+.hero-stat-div { width: 1px; height: 32px; background: rgba(255,255,255,0.2); }
+
+.homepage-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 28px 24px;
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.homepage-feed { flex: 1; min-width: 0; }
+
+.feed-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.feed-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gris-2);
+}
+.feed-count { font-size: 14px; color: var(--gris-2); }
+.feed-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filtro-chips {
+  display: flex;
+  gap: 4px;
+  background: var(--gris-card);
+  border: 1px solid var(--gris-borde);
+  border-radius: var(--radius-md);
+  padding: 3px;
+}
+.filtro-chip {
+  padding: 5px 14px;
+  border-radius: calc(var(--radius-md) - 2px);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gris-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+.filtro-chip.activo {
+  background: var(--azul);
+  color: #fff;
+}
+.filtro-chip:not(.activo):hover { background: var(--gris-bg); color: var(--texto); }
+
+.ordenar-select {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--gris-borde);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  color: var(--texto-2);
+  background: var(--gris-card);
+  cursor: pointer;
+  outline: none;
+}
+.ordenar-select:focus { border-color: var(--azul); }
+
+.especialidad-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.especialidad-chip {
+  padding: 5px 14px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--texto-2);
+  background: var(--gris-card);
+  border: 1px solid var(--gris-borde);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.especialidad-chip.activo {
+  background: var(--azul-light);
+  border-color: var(--azul);
+  color: var(--azul);
+  font-weight: 500;
+}
+.especialidad-chip:not(.activo):hover { background: var(--gris-bg); border-color: var(--gris-2); }
+
+.feed-lista { display: flex; flex-direction: column; gap: 12px; }
+
+.feed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--gris-2);
+  font-size: 14px;
+}
+.feed-empty-icon { opacity: 0.4; }
+
+.job-skeleton {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: fadeInUp 0.3s ease both;
+}
+.skeleton-header { display: flex; gap: 12px; align-items: center; }
+.skeleton-logo { width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; }
+.skeleton-lines { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.skeleton-line { height: 12px; border-radius: 4px; }
+.skeleton-pulse {
+  background: linear-gradient(90deg, var(--gris-borde) 25%, #eee 50%, var(--gris-borde) 75%);
+  background-size: 200% 100%;
+  animation: pulse 1.4s ease infinite;
+}
+@keyframes pulse {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (max-width: 900px) {
+  .homepage-content { flex-direction: column; }
+  .profile-sidebar { width: 100%; }
+}
+@media (max-width: 640px) {
+  .homepage-hero { padding: 28px 16px; }
+  .hero-titulo { font-size: 22px; }
+  .homepage-content { padding: 20px 16px; }
+}
