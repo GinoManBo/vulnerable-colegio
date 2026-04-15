@@ -1,27 +1,30 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import NavBar from './assets/NavBar';
 import HomePage from './pages/HomePage';
+import AuthPage from './pages/AuthPage';
+import MiPerfil from './pages/MiPerfil';
+import Configuracion from './pages/Configuracion';
 import './index.css';
 
-const MOCK_USUARIO = {
-  nombre: 'Ginol',
-  rol: 'Estudiante',
-  foto: null,
-};
-
 export default function App() {
+  const [usuario, setUsuario] = useState(null);
+
   return (
     <BrowserRouter>
-      <NavBar usuario={MOCK_USUARIO} />
+      {usuario && <NavBar usuario={usuario} onLogout={() => setUsuario(null)} />}
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/perfil/:id" element={<div style={{ padding: '40px 24px', color: 'var(--texto)' }}>Perfil de usuario — próximamente</div>} />
-        <Route path="/empresa/:id" element={<div style={{ padding: '40px 24px', color: 'var(--texto)' }}>Perfil de empresa — próximamente</div>} />
-        <Route path="/oferta/:id" element={<div style={{ padding: '40px 24px', color: 'var(--texto)' }}>Detalle de oferta — próximamente</div>} />
-        <Route path="/mensajes" element={<div style={{ padding: '40px 24px', color: 'var(--texto)' }}>Mensajes — próximamente</div>} />
-        <Route path="/notificaciones" element={<div style={{ padding: '40px 24px', color: 'var(--texto)' }}>Notificaciones — próximamente</div>} />
-        <Route path="/configuracion" element={<div style={{ padding: '40px 24px', color: 'var(--texto)' }}>Configuración — próximamente</div>} />
-        <Route path="/explorar" element={<div style={{ padding: '40px 24px', color: 'var(--texto)' }}>Explorar perfiles — próximamente</div>} />
+        <Route path="/acceso"        element={usuario ? <Navigate to="/" replace />                                                : <AuthPage onLogin={u => setUsuario(u)} />} />
+        <Route path="/"              element={usuario ? <HomePage />                                                               : <Navigate to="/acceso" replace />} />
+        <Route path="/perfil"        element={usuario ? <MiPerfil usuario={usuario} />                                             : <Navigate to="/acceso" replace />} />
+        <Route path="/configuracion" element={usuario ? <Configuracion />                                                          : <Navigate to="/acceso" replace />} />
+        <Route path="/perfil/:id"    element={usuario ? <div style={{padding:'40px 24px'}}>Perfil público — próximamente</div>     : <Navigate to="/acceso" replace />} />
+        <Route path="/empresa/:id"   element={usuario ? <div style={{padding:'40px 24px'}}>Perfil empresa — próximamente</div>     : <Navigate to="/acceso" replace />} />
+        <Route path="/oferta/:id"    element={usuario ? <div style={{padding:'40px 24px'}}>Detalle oferta — próximamente</div>     : <Navigate to="/acceso" replace />} />
+        <Route path="/mensajes"      element={usuario ? <div style={{padding:'40px 24px'}}>Mensajes — próximamente</div>           : <Navigate to="/acceso" replace />} />
+        <Route path="/notificaciones"element={usuario ? <div style={{padding:'40px 24px'}}>Notificaciones — próximamente</div>     : <Navigate to="/acceso" replace />} />
+        <Route path="/explorar"      element={usuario ? <div style={{padding:'40px 24px'}}>Explorar — próximamente</div>           : <Navigate to="/acceso" replace />} />
+        <Route path="*"              element={<Navigate to={usuario ? '/' : '/acceso'} replace />} />
       </Routes>
     </BrowserRouter>
   );
