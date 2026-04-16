@@ -73,10 +73,10 @@ export default function AuthPage({ onLogin }) {
                 <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
               </svg>
             </div>
-            <span className="auth-logo-txt">Empresa</span>
+            <span className="auth-logo-txt">Centro Educacional Cardenal José María Caro</span>
           </div>
           <h1 className="auth-left-titulo">La plataforma que conecta el talento técnico con el mundo laboral</h1>
-          <p className="auth-left-sub">Diseñada para egresados del Instituto Técnico Bío-Bío y las empresas que buscan su talento.</p>
+          <p className="auth-left-sub">Diseñada para egresados del Institutos Tecnicos que permite vincularse con empresas que ofrecen ofertas de empleo.</p>
           <div className="auth-features">
             {[
               { ico: '🎓', txt: 'Perfil profesional con portafolio y calificaciones' },

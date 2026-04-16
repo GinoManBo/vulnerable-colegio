@@ -1,0 +1,77 @@
+.dof-page  { min-height:calc(100vh - var(--nav-h)); padding:24px; background:var(--gris-bg); }
+.dof-inner { max-width:1100px; margin:0 auto; display:flex; gap:20px; align-items:flex-start; }
+.dof-main  { flex:1; min-width:0; display:flex; flex-direction:column; gap:16px; }
+
+.dof-back  { display:inline-flex; align-items:center; gap:6px; font-size:13px; color:var(--gris-2); text-decoration:none; transition:color var(--transition); margin-bottom:4px; }
+.dof-back:hover { color:var(--azul); }
+
+.dof-card  { padding:24px 26px; }
+
+.dof-header { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:16px; }
+.dof-logo   { width:54px; height:54px; border-radius:12px; border:1px solid var(--gris-borde); background:var(--azul-light); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; font-size:20px; color:var(--azul); flex-shrink:0; overflow:hidden; }
+.dof-logo img { width:100%; height:100%; object-fit:cover; }
+.dof-header-info { flex:1; min-width:0; }
+.dof-titulo      { font-family:var(--font-display); font-size:21px; font-weight:700; color:var(--texto); margin-bottom:4px; }
+.dof-empresa-link{ font-size:13.5px; color:var(--azul); font-weight:500; text-decoration:none; }
+.dof-empresa-link:hover { text-decoration:underline; }
+.dof-meta-chips  { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px; }
+.dof-meta-item   { display:flex; align-items:center; gap:4px; font-size:12.5px; color:var(--gris-2); }
+.dof-header-action { display:flex; align-items:flex-start; flex-shrink:0; margin-top:4px; }
+.dof-postular-btn  { min-width:130px; justify-content:center; }
+.dof-postulado     { display:flex; align-items:center; gap:6px; padding:9px 18px; background:var(--verde-light); border-radius:var(--radius-md); font-size:14px; font-weight:500; color:#0D6E47; }
+
+.dof-esp-chips   { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:20px; }
+.dof-section     { padding-top:20px; border-top:1px solid var(--gris-borde); }
+.dof-section-titulo { font-family:var(--font-display); font-size:15px; font-weight:600; color:var(--texto); margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.dof-preg-count { display:inline-flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:50%; background:var(--azul-light); font-size:12px; font-weight:600; color:var(--azul); }
+.dof-descripcion { font-size:14px; color:var(--texto-2); line-height:1.7; }
+.dof-descripcion p { margin-bottom:6px; }
+
+.dof-preguntas-card { padding:24px 26px; }
+.dof-preg-sub   { font-size:13px; color:var(--gris-2); margin-bottom:20px; margin-top:-8px; }
+
+.dof-nueva-preg { display:flex; gap:12px; align-items:flex-start; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--gris-borde); }
+.dof-preg-input-wrap { flex:1; display:flex; flex-direction:column; gap:8px; }
+.dof-preg-input-wrap textarea { width:100%; padding:10px 12px; border:1px solid var(--gris-borde); border-radius:var(--radius-md); font-size:13.5px; color:var(--texto); background:var(--gris-card); outline:none; resize:none; font-family:var(--font-body); line-height:1.5; transition:border-color var(--transition); }
+.dof-preg-input-wrap textarea:focus { border-color:var(--azul); box-shadow:0 0 0 3px rgba(26,58,92,.08); }
+.dof-preg-send  { align-self:flex-end; font-size:13px; padding:7px 16px; }
+.dof-preg-send:disabled { opacity:.45; cursor:not-allowed; }
+
+.dof-preguntas-lista { display:flex; flex-direction:column; gap:20px; }
+.dof-preg-empty { text-align:center; font-size:13.5px; color:var(--gris-2); padding:20px 0; }
+
+.dof-preg-item { display:flex; flex-direction:column; gap:10px; }
+.dof-preg-q, .dof-preg-r { display:flex; gap:10px; align-items:flex-start; }
+.dof-preg-r { padding-left:46px; }
+.dof-av     { border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; flex-shrink:0; }
+.dof-msg-bubble { flex:1; padding:10px 14px; border-radius:12px; }
+.dof-msg-bubble.estudiante { background:var(--gris-bg); border:1px solid var(--gris-borde); }
+.dof-msg-bubble.empresa    { background:var(--azul-light); border:1px solid rgba(26,58,92,.12); }
+.dof-msg-meta   { display:flex; align-items:center; gap:8px; margin-bottom:5px; flex-wrap:wrap; }
+.dof-msg-autor  { font-size:13px; font-weight:600; color:var(--texto); }
+.dof-msg-tiempo { font-size:11.5px; color:var(--gris-2); }
+.dof-msg-bubble p { font-size:13.5px; color:var(--texto-2); line-height:1.55; }
+
+.dof-resp-form { padding-left:46px; display:flex; gap:10px; align-items:flex-start; }
+.dof-resp-btn  { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; margin-left:46px; border:1px dashed var(--gris-borde); border-radius:var(--radius-md); font-size:12.5px; color:var(--gris-2); background:none; cursor:pointer; transition:all var(--transition); }
+.dof-resp-btn:hover { border-color:var(--azul); color:var(--azul); background:var(--azul-light); }
+
+.dof-aside      { width:270px; flex-shrink:0; display:flex; flex-direction:column; gap:14px; }
+.dof-aside-card { padding:18px 16px; }
+.dof-aside-titulo { font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--texto); margin-bottom:14px; }
+.dof-emp-info   { text-align:center; padding:4px 0 8px; }
+.dof-emp-logo   { width:52px; height:52px; border-radius:12px; background:var(--azul-light); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-size:20px; font-weight:700; color:var(--azul); margin:0 auto 8px; }
+.dof-emp-nombre { font-size:14px; font-weight:600; color:var(--texto); }
+.dof-emp-rubro  { font-size:12px; color:var(--gris-2); margin-top:2px; }
+.dof-detalle-row{ display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--gris-borde); font-size:13px; }
+.dof-detalle-row:last-child { border-bottom:none; }
+.dof-detalle-label { color:var(--gris-2); }
+.dof-detalle-val   { font-weight:500; color:var(--texto); text-align:right; }
+
+.spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+@media(max-width:860px){
+  .dof-inner { flex-direction:column; }
+  .dof-aside { width:100%; }
+}
