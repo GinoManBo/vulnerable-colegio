@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './VistaEmpresa.css';
 
+// Más mockup de datos
+
 const MOCK_OFERTAS_EMP = [
   { _id:'e1', titulo:'Técnico electricista industrial', postulantes:12, activo:true, publicado_en:'2024-03-10', salario_min:650000, salario_max:850000, modalidad:'presencial', ubicacion:'Concepción', especialidades_requeridas:['Electricidad','PLC'] },
   { _id:'e2', titulo:'Mecatrónico de producción',       postulantes:7,  activo:true, publicado_en:'2024-03-08', salario_min:700000, salario_max:950000, modalidad:'presencial', ubicacion:'Talcahuano', especialidades_requeridas:['Mecatrónica'] },

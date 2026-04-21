@@ -1,8 +1,7 @@
 const { Schema, model, Types } = require("mongoose");
 
-// ─────────────────────────────────────────────
-//  USERS  (estudiante | empresa | admin)
-// ─────────────────────────────────────────────
+// Estructura de datos para la base de datos pedidos a chatgpt
+
 const userSchema = new Schema(
   {
     nombre: { type: String, required: true, trim: true },
@@ -21,18 +20,16 @@ const userSchema = new Schema(
 
 const User = model("User", userSchema);
 
-// ─────────────────────────────────────────────
+// 
 //  PERFIL ESTUDIANTE
-// ─────────────────────────────────────────────
+// 
 const perfilEstudianteSchema = new Schema(
   {
     usuario_id: { type: Types.ObjectId, ref: "User", required: true, unique: true },
     foto_perfil_url: { type: String, default: null },
     curriculum_url: { type: String, default: null },
     descripcion: { type: String, maxlength: 600 },
-    intereses: [{ type: String, trim: true }],            // ej: ["mecatrónica", "redes"]
-    destrezas: [{ type: String, trim: true }],            // ej: ["AutoCAD", "Python"]
-    // puntuación calculada a partir de calificaciones_trabajo
+    intereses: [{ type: String, trim: true }],           
     puntuacion_promedio: { type: Number, min: 1, max: 7, default: null },
     total_calificaciones: { type: Number, default: 0 },
   },
@@ -41,9 +38,9 @@ const perfilEstudianteSchema = new Schema(
 
 const PerfilEstudiante = model("PerfilEstudiante", perfilEstudianteSchema);
 
-// ─────────────────────────────────────────────
+// 
 //  PERFIL EMPRESA
-// ─────────────────────────────────────────────
+// 
 const perfilEmpresaSchema = new Schema(
   {
     usuario_id: { type: Types.ObjectId, ref: "User", required: true, unique: true },
@@ -61,23 +58,23 @@ const perfilEmpresaSchema = new Schema(
 
 const PerfilEmpresa = model("PerfilEmpresa", perfilEmpresaSchema);
 
-// ─────────────────────────────────────────────
+// 
 //  PUBLICACIONES DE EMPLEO
-// ─────────────────────────────────────────────
+// 
 const publicacionEmpleoSchema = new Schema(
   {
     empresa_id: { type: Types.ObjectId, ref: "PerfilEmpresa", required: true },
     titulo: { type: String, required: true, trim: true },
     descripcion: { type: String, required: true },
     ubicacion: { type: String, required: true },
-    salario_min: { type: Number, min: 0 },                // en CLP
+    salario_min: { type: Number, min: 0 },               
     salario_max: { type: Number, min: 0 },
     modalidad: {
       type: String,
       enum: ["presencial", "remoto", "híbrido"],
       default: "presencial",
     },
-    especialidades_requeridas: [{ type: String }],        // ej: ["electricidad", "mecánica"]
+    especialidades_requeridas: [{ type: String }],        
     activo: { type: Boolean, default: true },
     cierre_en: { type: Date, default: null },
   },
@@ -86,9 +83,9 @@ const publicacionEmpleoSchema = new Schema(
 
 const PublicacionEmpleo = model("PublicacionEmpleo", publicacionEmpleoSchema);
 
-// ─────────────────────────────────────────────
+// n
 //  POSTULACIONES
-// ─────────────────────────────────────────────
+// n
 const postulacionSchema = new Schema(
   {
     empleo_id: { type: Types.ObjectId, ref: "PublicacionEmpleo", required: true },
@@ -103,15 +100,9 @@ const postulacionSchema = new Schema(
   { timestamps: { createdAt: "postulado_en", updatedAt: "actualizado_en" } }
 );
 
-// Un estudiante no puede postular dos veces al mismo empleo
-postulacionSchema.index({ empleo_id: 1, estudiante_id: 1 }, { unique: true });
 
-const Postulacion = model("Postulacion", postulacionSchema);
+// Replys en postulaciones de trabajo pedidas a chatgpt
 
-// ─────────────────────────────────────────────
-//  PREGUNTAS / COMENTARIOS EN PUBLICACIONES
-//  (flujo de preguntas tipo foro por oferta)
-// ─────────────────────────────────────────────
 const preguntaEmpleoSchema = new Schema(
   {
     empleo_id: { type: Types.ObjectId, ref: "PublicacionEmpleo", required: true },
@@ -126,11 +117,7 @@ const preguntaEmpleoSchema = new Schema(
 
 const PreguntaEmpleo = model("PreguntaEmpleo", preguntaEmpleoSchema);
 
-// ─────────────────────────────────────────────
-//  CALIFICACIONES DE TRABAJO
-//  (escala 1 – 7, registrada cuando un estudiante
-//   fue contratado a través de la plataforma)
-// ─────────────────────────────────────────────
+
 const calificacionTrabajoSchema = new Schema(
   {
     postulacion_id: { type: Types.ObjectId, ref: "Postulacion", required: true, unique: true },

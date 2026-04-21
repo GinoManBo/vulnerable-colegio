@@ -2,13 +2,15 @@ import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import './MiPerfil.css';
 
+// MockUp de Trabajos
+
 const MOCK_TRABAJOS = [
   { id: 1, titulo: 'Técnico electricista', empresa: 'Industrias CMPC', fecha: 'Mar 2024 – Jun 2024', puntuacion: 6.5, comentario: 'Excelente trabajo, muy puntual y responsable. Se recomienda sin dudas.' },
   { id: 2, titulo: 'Soporte eléctrico', empresa: 'Constructora Sur', fecha: 'Ago 2023 – Oct 2023', puntuacion: 6.0, comentario: 'Buen desempeño, cumplió con todas las tareas asignadas en el tiempo esperado.' },
   { id: 3, titulo: 'Práctica profesional', empresa: 'TechChile S.A.',  fecha: 'Ene 2023 – Mar 2023', puntuacion: 7.0, comentario: 'Destacado. Superó las expectativas del equipo técnico. Se adaptó muy rápido.' },
 ];
 
-const DESTREZAS_SUGERIDAS = ['AutoCAD', 'SolidWorks', 'PLC Siemens', 'PLC Schneider', 'Arduino', 'Python', 'CCNA', 'Linux', 'Neumática', 'Hidráulica', 'Mantenimiento preventivo', 'Lectura de planos'];
+const DESTREZAS_SUGERIDAS = ['AutoCAD', 'Arduino', 'Python', 'Linux', 'Neumática', 'Hidráulica', 'Mantenimiento preventivo', 'Lectura de planos'];
 
 function EstrellaFill({ valor }) {
   const pct = ((valor / 7) * 100).toFixed(1);
@@ -22,6 +24,7 @@ function EstrellaFill({ valor }) {
 }
 
 export default function MiPerfil() {
+  // espacio de perfil
   const [editando, setEditando] = useState(false);
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
@@ -75,6 +78,8 @@ export default function MiPerfil() {
     if (v && !intereses.includes(v)) setIntereses(p => [...p, v]);
     setNuevoInteres('');
   }
+
+  // Preset o Premade 
 
   return (
     <div className="miperfil-page">

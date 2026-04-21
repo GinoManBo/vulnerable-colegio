@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import './PanelAdmin.css';
 
+// No funcional datos pedidos a Chatgpt para rellenar mas adelante
+
 const MOCK_USUARIOS = [
   { _id:'u1', nombre:'Valentina Mora',   email:'val.mora@gmail.com',    rol:'estudiante', activo:true,  creado:'2024-01-15', especialidad:'Electricidad' },
   { _id:'u2', nombre:'Diego Fuentes',    email:'d.fuentes@gmail.com',   rol:'estudiante', activo:true,  creado:'2024-01-20', especialidad:'Redes' },

@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './ProfileSidebar.css';
 
+// más mockup de datos pedidos a chatgpt
+
+
 const MOCK_PERFILES = [
   { _id: '1', nombre: 'Valentina Mora',   rol: 'estudiante', especialidad: 'Mecatrónica',  puntuacion: 6.2, destrezas: ['AutoCAD', 'SolidWorks'], conectado: false },
   { _id: '2', nombre: 'Diego Fuentes',    rol: 'estudiante', especialidad: 'Electricidad', puntuacion: 6.8, destrezas: ['PLC', 'Instalaciones'], conectado: false },
