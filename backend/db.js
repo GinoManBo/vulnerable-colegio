@@ -1,41 +1,17 @@
-/*import mongoose from 'mongoose';
+import mongoose from 'mongoose';
 
-export const connectDB = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URI);
-        console.log('MongoDB connected');
-    } catch (error) {
-        console.error('MongoDB connection failed:', error.message);
-    }
-}
-
-*/
-
-
-
-
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://ginol:<db_password>@cluster0.ay7wrmi.mongodb.net/?appName=Cluster0";
-
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
-async function run() {
+export async function connectDB() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+    const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/vulnerable-colegio';
+    
+    await mongoose.connect(mongoUri);
+    
+    console.log('✓ MongoDB conectado correctamente');
+    return mongoose.connection;
+  } catch (error) {
+    console.error('✗ Error conectando a MongoDB:', error.message);
+    process.exit(1);
   }
 }
-run().catch(console.dir);
+
+export default mongoose;

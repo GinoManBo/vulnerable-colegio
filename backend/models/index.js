@@ -1,6 +1,6 @@
-const { Schema, model, Types } = require("mongoose");
+import { Schema, model, Types } from 'mongoose';
 
-// Estructura de datos para la base de datos pedidos a chatgpt
+// Estructura de datos para la base de datos
 
 const userSchema = new Schema(
   {
@@ -100,6 +100,7 @@ const postulacionSchema = new Schema(
   { timestamps: { createdAt: "postulado_en", updatedAt: "actualizado_en" } }
 );
 
+const Postulacion = model("Postulacion", postulacionSchema);
 
 // Replys en postulaciones de trabajo pedidas a chatgpt
 
@@ -181,7 +182,7 @@ const Mensaje = model("Mensaje", mensajeSchema);
 // ─────────────────────────────────────────────
 //  EXPORTS
 // ─────────────────────────────────────────────
-module.exports = {
+export {
   User,
   PerfilEstudiante,
   PerfilEmpresa,

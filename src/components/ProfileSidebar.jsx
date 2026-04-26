@@ -1,86 +1,41 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import './ProfileSidebar.css';
 
-// más mockup de datos pedidos a chatgpt
+const ESPECIALIDADES = ['Electricidad industrial','Mecatrónica','Redes y comunicaciones','Automatización y PLC','Construcción'];
 
-
-const MOCK_PERFILES = [
-  { _id: '1', nombre: 'Valentina Mora',   rol: 'estudiante', especialidad: 'Mecatrónica',  puntuacion: 6.2, destrezas: ['AutoCAD', 'SolidWorks'], conectado: false },
-  { _id: '2', nombre: 'Diego Fuentes',    rol: 'estudiante', especialidad: 'Electricidad', puntuacion: 6.8, destrezas: ['PLC', 'Instalaciones'], conectado: false },
-  { _id: '3', nombre: 'TechChile S.A.',   rol: 'empresa',    rubro: 'Tecnología',           activos: 4, conectado: false },
-  { _id: '4', nombre: 'Camila Torres',    rol: 'estudiante', especialidad: 'Redes',         puntuacion: 5.9, destrezas: ['CCNA', 'Linux'], conectado: false },
-  { _id: '5', nombre: 'Constructora Sur', rol: 'empresa',    rubro: 'Construcción',         activos: 2, conectado: false },
-];
-
-function StarRating({ valor }) {
-  const pct = ((valor / 7) * 100).toFixed(0);
-  return (
-    <div className="star-rating" title={`${valor.toFixed(1)} / 7`}>
-      <div className="star-bar-bg">
-        <div className="star-bar-fill" style={{ width: `${pct}%` }} />
-      </div>
-      <span className="star-valor">{valor.toFixed(1)}</span>
-    </div>
-  );
-}
-
-export default function ProfileSidebar() {
-  const [perfiles, setPerfiles] = useState(MOCK_PERFILES);
-
-  function toggleConectar(id) {
-    setPerfiles(prev => prev.map(p => p._id === id ? { ...p, conectado: !p.conectado } : p));
-  }
-
+export default function ProfileSidebar({ onFiltrar }) {
   return (
     <aside className="profile-sidebar">
       <div className="sidebar-section card">
-        <h2 className="sidebar-title">Perfiles sugeridos</h2>
-        <div className="sidebar-perfiles">
-          {perfiles.map(p => (
-            <div key={p._id} className="sidebar-perfil-item">
-              <Link to={p.rol === 'empresa' ? `/empresa/${p._id}` : `/perfil/${p._id}`} className="sidebar-perfil-link">
-                <div className={`avatar sidebar-avatar ${p.rol}`} style={{ width: 40, height: 40, fontSize: 15 }}>
-                  {p.nombre[0]}
-                </div>
-                <div className="sidebar-perfil-info">
-                  <p className="sidebar-perfil-nombre">{p.nombre}</p>
-                  {p.rol === 'estudiante' ? (
-                    <>
-                      <p className="sidebar-perfil-sub">{p.especialidad}</p>
-                      <StarRating valor={p.puntuacion} />
-                    </>
-                  ) : (
-                    <p className="sidebar-perfil-sub">{p.rubro} · {p.activos} ofertas activas</p>
-                  )}
-                </div>
-              </Link>
-              <button
-                className={`conectar-btn ${p.conectado ? 'conectado' : ''}`}
-                onClick={() => toggleConectar(p._id)}
-              >
-                {p.conectado ? '✓' : '+'}
-              </button>
-            </div>
-          ))}
+        <h2 className="sidebar-title">Accesos rápidos</h2>
+        <div className="sidebar-links">
+          <Link to="/perfil"   className="sidebar-link-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Mi perfil
+          </Link>
+          <Link to="/mensajes" className="sidebar-link-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Mensajes
+          </Link>
+          <Link to="/configuracion" className="sidebar-link-item">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Configuración
+          </Link>
         </div>
-        <Link to="/explorar" className="sidebar-ver-mas">Ver más perfiles</Link>
       </div>
 
       <div className="sidebar-section card">
         <h2 className="sidebar-title">Especialidades en demanda</h2>
         <div className="demanda-lista">
-          {[
-            { nombre: 'Electricidad industrial', ofertas: 12 },
-            { nombre: 'Mecatrónica',              ofertas: 9  },
-            { nombre: 'Redes y comunicaciones',   ofertas: 7  },
-            { nombre: 'Automatización PLC',        ofertas: 6  },
-            { nombre: 'Construcción',              ofertas: 11 },
-          ].map(d => (
-            <Link key={d.nombre} to={`/buscar?q=${encodeURIComponent(d.nombre)}`} className="demanda-item">
-              <span className="demanda-nombre">{d.nombre}</span>
-              <span className="badge badge-azul">{d.ofertas}</span>
-            </Link>
+          {ESPECIALIDADES.map(e => (
+            <button
+              key={e}
+              className="demanda-item"
+              onClick={() => onFiltrar?.(e)}
+            >
+              <span className="demanda-nombre">{e}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
           ))}
         </div>
       </div>
