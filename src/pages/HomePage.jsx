@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ofertasAPI } from '../api';
 import JobCard from '../components/JobCard';
 import ProfileSidebar from '../components/ProfileSidebar';
 import './HomePage.css';
@@ -6,48 +7,7 @@ import './HomePage.css';
 const MODALIDADES = ['todos', 'presencial', 'remoto', 'híbrido'];
 const ESPECIALIDADES = ['Todas', 'Electricidad', 'Mecatrónica', 'Redes', 'Construcción', 'Automatización'];
 
-const MOCK_OFERTAS = [
-  {
-    _id: '1', titulo: 'Técnico electricista industrial',
-    descripcion: 'Buscamos técnico en electricidad industrial para mantenimiento preventivo y correctivo de maquinaria en planta. Experiencia mínima 1 año, manejo de tableros eléctricos y sistemas trifásicos.',
-    ubicacion: 'Concepción, Bío-Bío', salario_min: 650000, salario_max: 850000,
-    modalidad: 'presencial', publicado_en: new Date(Date.now() - 1800000).toISOString(),
-    especialidades_requeridas: ['Electricidad', 'PLC', 'Mantenimiento'],
-    empresa_id: { nombre_empresa: 'Industrias CMPC', logo_url: null }, destacada: true,
-  },
-  {
-    _id: '2', titulo: 'Mecatrónico de producción',
-    descripcion: 'Empresa del rubro alimentario requiere mecatrónico para línea de producción automatizada. Trabajo en turnos, conocimientos en neumática y control de motores requeridos.',
-    ubicacion: 'Talcahuano, Bío-Bío', salario_min: 700000, salario_max: 950000,
-    modalidad: 'presencial', publicado_en: new Date(Date.now() - 7200000).toISOString(),
-    especialidades_requeridas: ['Mecatrónica', 'Neumática', 'Automatización'],
-    empresa_id: { nombre_empresa: 'Carozzi S.A.', logo_url: null },
-  },
-  {
-    _id: '3', titulo: 'Soporte técnico en redes',
-    descripcion: 'Se necesita técnico en redes para instalación, configuración y soporte de infraestructura de red en empresas clientes. Certificación CCNA valorada.',
-    ubicacion: 'Los Ángeles, Bío-Bío', salario_min: 580000, salario_max: 750000,
-    modalidad: 'híbrido', publicado_en: new Date(Date.now() - 10800000).toISOString(),
-    especialidades_requeridas: ['Redes', 'CCNA', 'Soporte TI'],
-    empresa_id: { nombre_empresa: 'TechChile S.A.', logo_url: null },
-  },
-  {
-    _id: '4', titulo: 'Operario de construcción calificado',
-    descripcion: 'Constructora requiere operarios calificados para proyecto habitacional en Concepción. Manejo de maquinaria pesada es un plus. Contrato por faena con posibilidad de continuidad.',
-    ubicacion: 'Concepción, Bío-Bío', salario_min: 600000, salario_max: 800000,
-    modalidad: 'presencial', publicado_en: new Date(Date.now() - 86400000).toISOString(),
-    especialidades_requeridas: ['Construcción', 'Obra civil'],
-    empresa_id: { nombre_empresa: 'Constructora Sur', logo_url: null },
-  },
-  {
-    _id: '5', titulo: 'Programador PLC - automatización',
-    descripcion: 'Empresa de automatización busca técnico con experiencia en programación Siemens TIA Portal y Schneider. Proyecto en industria minera, disponibilidad para viajes.',
-    ubicacion: 'Remoto / Antofagasta', salario_min: 900000, salario_max: 1300000,
-    modalidad: 'remoto', publicado_en: new Date(Date.now() - 172800000).toISOString(),
-    especialidades_requeridas: ['PLC', 'Siemens', 'Automatización'],
-    empresa_id: { nombre_empresa: 'AutomaTec Ltda.', logo_url: null },
-  },
-];
+
 
 function IcoFilter() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>; }
 function IcoSort()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>; }
@@ -59,11 +19,18 @@ export default function HomePage() {
   const [cargando, setCargando] = useState(true);
   const [ofertas, setOfertas] = useState([]);
 
-// falta cambiar los mock up datos
-
   useEffect(() => {
-    const t = setTimeout(() => { setOfertas(MOCK_OFERTAS); setCargando(false); }, 600);
-    return () => clearTimeout(t);
+    async function cargarOfertas() {
+      try {
+        const datos = await ofertasAPI.listar();
+        setOfertas(datos);
+      } catch (err) {
+        console.error('Error cargando ofertas:', err);
+      } finally {
+        setCargando(false);
+      }
+    }
+    cargarOfertas();
   }, []);
 
   const ofertasFiltradas = ofertas

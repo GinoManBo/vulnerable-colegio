@@ -2,24 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import './navbar.css';
 
-const MOCK_NOTIFS = [
-  { id: 1, tipo: 'aceptado',  texto: 'TechChile S.A. aceptó tu postulación', sub: 'Técnico de Redes', tiempo: '5 min', leida: false },
-  { id: 2, tipo: 'nueva',     texto: 'Nueva oferta que podría interesarte', sub: 'Operario CNC — Concepción', tiempo: '1 h', leida: false },
-  { id: 3, tipo: 'rechazado', texto: 'Constructora Bío-Bío revisó tu solicitud', sub: 'Ayudante de obra', tiempo: '3 h', leida: true },
-  { id: 4, tipo: 'nueva',     texto: 'Empresa Sodimac publicó una nueva oferta', sub: 'Electricista residencial', tiempo: 'Ayer', leida: true },
-];
-
-const MOCK_RESULTADOS = {
-  empresas: [
-    { id: 1, nombre: 'TechChile S.A.',      tipo: 'empresa', rubro: 'Tecnología' },
-    { id: 2, nombre: 'Constructora Sur',    tipo: 'empresa', rubro: 'Construcción' },
-  ],
-  usuarios: [
-    { id: 3, nombre: 'Valentina Mora',  tipo: 'estudiante', especialidad: 'Mecatrónica' },
-    { id: 4, nombre: 'Diego Fuentes',   tipo: 'estudiante', especialidad: 'Electricidad' },
-  ],
-};
-
 function IcoHome()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>; }
 function IcoBell()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>; }
 function IcoUser()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>; }
@@ -37,12 +19,12 @@ function tipoNotifLabel(tipo) {
   return 'Nueva oferta';
 }
 
-export default function NavBar({ usuario }) {
+export default function NavBar({ usuario, onLogout }) {
   const [busqueda, setBusqueda] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [showNotifs, setShowNotifs] = useState(false);
   const [showPerfil, setShowPerfil] = useState(false);
-  const [notifs, setNotifs] = useState(MOCK_NOTIFS);
+  const [notifs, setNotifs] = useState([]);
   const searchRef = useRef(null);
   const notifsRef = useRef(null);
   const perfilRef = useRef(null);
@@ -64,10 +46,7 @@ export default function NavBar({ usuario }) {
     setNotifs(prev => prev.map(n => ({ ...n, leida: true })));
   }
 
-  const resultadosFiltrados = busqueda.length > 1 ? {
-    empresas: MOCK_RESULTADOS.empresas.filter(e => e.nombre.toLowerCase().includes(busqueda.toLowerCase())),
-    usuarios: MOCK_RESULTADOS.usuarios.filter(u => u.nombre.toLowerCase().includes(busqueda.toLowerCase())),
-  } : null;
+  const resultadosFiltrados = null;
 
   const hayResultados = resultadosFiltrados && (resultadosFiltrados.empresas.length > 0 || resultadosFiltrados.usuarios.length > 0);
 
@@ -217,7 +196,15 @@ export default function NavBar({ usuario }) {
                   </Link>
                 </div>
                 <div className="perfil-menu-footer">
-                  <button className="perfil-menu-item logout">
+                  <button 
+                    className="perfil-menu-item logout"
+                    onClick={() => {
+                      localStorage.removeItem('token');
+                      localStorage.removeItem('usuario');
+                      onLogout();
+                      setShowPerfil(false);
+                    }}
+                  >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                     Cerrar sesión
                   </button>

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authAPI } from '../api.js';
 import './AuthPage.css';
 
 const ROLES = [
@@ -42,23 +43,46 @@ export default function AuthPage({ onLogin }) {
     e.preventDefault();
     if (!validarPaso1()) return;
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      onLogin({ nombre: 'Gino Monsálvez', rol: 'estudiante', email: form.email });
-      navigate('/');
-    }, 900);
+    authAPI.login(form.email, form.password)
+      .then(res => {
+        setLoading(false);
+        localStorage.setItem('token', res.token);
+        localStorage.setItem('usuario', JSON.stringify(res.usuario));
+        onLogin(res.usuario);
+        navigate('/');
+      })
+      .catch(err => {
+        setLoading(false);
+        setErrors({ submit: err.message || 'Error al iniciar sesión' });
+      });
   }
 
   function handleSiguiente(e) {
     e.preventDefault();
-    if (paso === 1 && validarPaso1()) setPaso(2);
-    else if (paso === 2 && validarPaso2()) {
+    if (paso === 1 && validarPaso1()) {
+      setPaso(2);
+    } else if (paso === 2 && validarPaso2()) {
       setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
-        onLogin({ nombre: form.nombre, rol, email: form.email });
-        navigate('/');
-      }, 900);
+      const payload = {
+        email: form.email,
+        password: form.password,
+        nombre: form.nombre,
+        apellido: form.apellido,
+        rol: rol,
+        ...(rol === 'empresa' ? { nombre_empresa: form.empresa } : { especialidad: form.rubro }),
+      };
+      authAPI.registro(payload)
+        .then(res => {
+          setLoading(false);
+          localStorage.setItem('token', res.token);
+          localStorage.setItem('usuario', JSON.stringify(res.usuario));
+          onLogin(res.usuario);
+          navigate('/');
+        })
+        .catch(err => {
+          setLoading(false);
+          setErrors({ submit: err.message || 'Error al crear la cuenta' });
+        });
     }
   }
 
@@ -114,6 +138,8 @@ export default function AuthPage({ onLogin }) {
               <h2 className="auth-form-titulo">Bienvenido de vuelta</h2>
               <p className="auth-form-sub">Ingresa tus credenciales para continuar</p>
 
+              {errors.submit && <div style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.875rem' }}>{errors.submit}</div>}
+
               <div className="form-group">
                 <label>Correo electrónico</label>
                 <input type="email" placeholder="tu@correo.cl" value={form.email} onChange={e => upd('email', e.target.value)} className={errors.email ? 'error' : ''} />
@@ -151,6 +177,8 @@ export default function AuthPage({ onLogin }) {
               </div>
               <h2 className="auth-form-titulo">{paso === 1 ? 'Crea tu cuenta' : 'Tu información'}</h2>
               <p className="auth-form-sub">{paso === 1 ? 'Ingresa tu correo y una contraseña segura' : 'Cuéntanos un poco más sobre ti'}</p>
+
+              {errors.submit && <div style={{ color: '#ef4444', marginBottom: '1rem', fontSize: '0.875rem' }}>{errors.submit}</div>}
 
               {paso === 1 && (
                 <>

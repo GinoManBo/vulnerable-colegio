@@ -1,14 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { perfilAPI } from '../api.js';
 import './MiPerfil.css';
-
-// MockUp de Trabajos
-
-const MOCK_TRABAJOS = [
-  { id: 1, titulo: 'Técnico electricista', empresa: 'Industrias CMPC', fecha: 'Mar 2024 – Jun 2024', puntuacion: 6.5, comentario: 'Excelente trabajo, muy puntual y responsable. Se recomienda sin dudas.' },
-  { id: 2, titulo: 'Soporte eléctrico', empresa: 'Constructora Sur', fecha: 'Ago 2023 – Oct 2023', puntuacion: 6.0, comentario: 'Buen desempeño, cumplió con todas las tareas asignadas en el tiempo esperado.' },
-  { id: 3, titulo: 'Práctica profesional', empresa: 'TechChile S.A.',  fecha: 'Ene 2023 – Mar 2023', puntuacion: 7.0, comentario: 'Destacado. Superó las expectativas del equipo técnico. Se adaptó muy rápido.' },
-];
 
 const DESTREZAS_SUGERIDAS = ['AutoCAD', 'Arduino', 'Python', 'Linux', 'Neumática', 'Hidráulica', 'Mantenimiento preventivo', 'Lectura de planos'];
 
@@ -23,32 +16,63 @@ function EstrellaFill({ valor }) {
   );
 }
 
-export default function MiPerfil() {
+export default function MiPerfil({ usuario }) {
   // espacio de perfil
   const [editando, setEditando] = useState(false);
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
+  const [loading, setLoading] = useState(true);
   const fileRef = useRef(null);
 
   const [datos, setDatos] = useState({
-    nombre: 'Juan Manuel Gino',
-    apellido: 'Monsálvez',
-    especialidad: 'Electricidad industrial',
-    descripcion: 'Egresada del Instituto Técnico Bío-Bío, especialidad eléctrica. Busco mi primera experiencia laboral formal en el área industrial. Me apasiona la automatización y el mantenimiento preventivo.',
-    ciudad: 'Concepción',
-    telefono: '+56 9 8165 1087',
-    email: 'ginomonsalvez@gmail.com',
-    linkedin: 'linkedin.com/in/ginomonsalvez',
+    nombre: usuario?.nombre || '',
+    apellido: usuario?.apellido || '',
+    especialidad: '',
+    descripcion: '',
+    ciudad: '',
+    telefono: '',
+    email: usuario?.email || '',
+    linkedin: '',
   });
   const [tmp, setTmp] = useState({ ...datos });
 
-  const [destrezas, setDestrezas] = useState(['Electricidad', 'PLC Siemens', 'AutoCAD', 'Mantenimiento preventivo']);
-  const [intereses, setIntereses] = useState(['Automatización', 'Industria minera', 'Energía renovable']);
+  const [destrezas, setDestrezas] = useState([]);
+  const [intereses, setIntereses] = useState([]);
   const [nuevaDestreza, setNuevaDestreza] = useState('');
   const [nuevoInteres, setNuevoInteres] = useState('');
   const [curriculum, setCurriculum] = useState(null);
 
-  const promedioCalif = MOCK_TRABAJOS.reduce((s, t) => s + t.puntuacion, 0) / MOCK_TRABAJOS.length;
+  const promedioCalif = 0;
+
+  // Cargar datos del perfil desde la API
+  useEffect(() => {
+    if (!usuario) return;
+    
+    perfilAPI.me()
+      .then(res => {
+        const perfil = res.perfil || {};
+        const datosCompletos = {
+          nombre: res.nombre || usuario.nombre,
+          apellido: res.apellido || usuario.apellido,
+          especialidad: perfil.especialidad || '',
+          descripcion: perfil.descripcion || '',
+          ciudad: perfil.ciudad || '',
+          telefono: perfil.telefono || '',
+          email: res.email || usuario.email,
+          linkedin: perfil.linkedin || '',
+        };
+        setDatos(datosCompletos);
+        setTmp(datosCompletos);
+        setDestrezas(perfil.destrezas || []);
+        setIntereses(perfil.intereses || []);
+        setFotoPreview(perfil.foto_perfil_url || null);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error cargando perfil:', err);
+        setLoading(false);
+      });
+  }, [usuario]);
 
   function handleFoto(e) {
     const file = e.target.files[0];
@@ -63,8 +87,31 @@ export default function MiPerfil() {
   }
 
   function guardar() {
-    setDatos({ ...tmp });
-    setEditando(false);
+    if (!usuario) return;
+    setLoading(true);
+    
+    const payload = {
+      nombre: tmp.nombre,
+      apellido: tmp.apellido,
+      descripcion: tmp.descripcion,
+      especialidad: tmp.especialidad,
+      ciudad: tmp.ciudad,
+      telefono: tmp.telefono,
+      linkedin: tmp.linkedin,
+      ...(destrezas.length && { destrezas: JSON.stringify(destrezas) }),
+      ...(intereses.length && { intereses: JSON.stringify(intereses) }),
+    };
+
+    perfilAPI.actualizar(payload)
+      .then(() => {
+        setDatos({ ...tmp });
+        setEditando(false);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error guardando perfil:', err);
+        setLoading(false);
+      });
   }
 
   function addDestreza(val) {
@@ -83,6 +130,9 @@ export default function MiPerfil() {
 
   return (
     <div className="miperfil-page">
+      {loading ? (
+        <div style={{ padding: '40px 24px', textAlign: 'center' }}>Cargando perfil...</div>
+      ) : (
       <div className="miperfil-inner">
 
         <div className="miperfil-main">
@@ -253,7 +303,7 @@ export default function MiPerfil() {
               </div>
             </div>
             <div className="historial-lista">
-              {MOCK_TRABAJOS.map(t => (
+              {[].map(t => (
                 <div key={t.id} className="historial-item">
                   <div className="historial-item-top">
                     <div>
@@ -275,7 +325,7 @@ export default function MiPerfil() {
             <h3 className="aside-title">Resumen</h3>
             <div className="aside-stat-list">
               <div className="aside-stat">
-                <span className="aside-stat-n">{MOCK_TRABAJOS.length}</span>
+                <span className="aside-stat-n">0</span>
                 <span className="aside-stat-l">Trabajos completados</span>
               </div>
               <div className="aside-stat">
@@ -333,6 +383,7 @@ export default function MiPerfil() {
           </div>
         </aside>
       </div>
+      )}
     </div>
   );
 }

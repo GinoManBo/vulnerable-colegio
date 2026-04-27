@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import NavBar      from './assets/NavBar';
 import HomePage    from './pages/HomePage';
@@ -19,6 +19,20 @@ function RutaProtegida({ usuario, roles, children }) {
 
 export default function App() {
   const [usuario, setUsuario] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Restaurar usuario del localStorage al cargar
+  useEffect(() => {
+    const usuarioGuardado = localStorage.getItem('usuario');
+    if (usuarioGuardado) {
+      try {
+        setUsuario(JSON.parse(usuarioGuardado));
+      } catch (err) {
+        console.error('Error restaurando usuario:', err);
+      }
+    }
+    setLoading(false);
+  }, []);
 
   function homeSegunRol() {
     if (!usuario) return <Navigate to="/acceso" replace />;
@@ -26,6 +40,8 @@ export default function App() {
     if (usuario.rol === 'admin')   return <PanelAdmin   usuario={usuario} />;
     return <HomePage />;
   }
+
+  if (loading) return <div style={{ padding: '40px 24px', textAlign: 'center' }}>Cargando...</div>;
 
   return (
     <BrowserRouter>

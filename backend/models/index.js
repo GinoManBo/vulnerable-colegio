@@ -180,6 +180,27 @@ mensajeSchema.index({ conversacion_id: 1, enviado_en: -1 });
 const Mensaje = model("Mensaje", mensajeSchema);
 
 // ─────────────────────────────────────────────
+//  NOTIFICACIONES
+// ─────────────────────────────────────────────
+const notificacionSchema = new Schema(
+  {
+    usuario_id: { type: Types.ObjectId, ref: "User", required: true },
+    tipo: {
+      type: String,
+      enum: ["aceptado", "rechazado", "calificacion", "mensaje", "otra"],
+      default: "otra",
+    },
+    titulo: { type: String, required: true },
+    texto: { type: String, maxlength: 500 },
+    link: { type: String, default: null },
+    leida: { type: Boolean, default: false },
+  },
+  { timestamps: { createdAt: "creado_en", updatedAt: "actualizado_en" } }
+);
+
+const Notificacion = model("Notificacion", notificacionSchema);
+
+// ─────────────────────────────────────────────
 //  EXPORTS
 // ─────────────────────────────────────────────
 export {
@@ -192,4 +213,5 @@ export {
   CalificacionTrabajo,
   Conversacion,
   Mensaje,
+  Notificacion,
 };
