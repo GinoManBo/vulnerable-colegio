@@ -23,9 +23,11 @@ export default function HomePage() {
     async function cargarOfertas() {
       try {
         const datos = await ofertasAPI.listar();
-        setOfertas(datos);
+        // El endpoint retorna { ofertas, total, paginas }
+        setOfertas(datos.ofertas || datos || []);
       } catch (err) {
         console.error('Error cargando ofertas:', err);
+        setOfertas([]);
       } finally {
         setCargando(false);
       }

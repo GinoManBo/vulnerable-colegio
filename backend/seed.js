@@ -1,8 +1,3 @@
-/**
- * Script para inicializar la base de datos con datos de prueba
- * Uso: node seed.js
- */
-
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import { hashPassword } from './auth.js';

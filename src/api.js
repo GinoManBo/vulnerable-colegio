@@ -2,18 +2,26 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Helper para hacer fetch
 async function fetchAPI(url, options = {}) {
+  const headers = {
+    'Content-Type': 'application/json',
+    ...options.headers,
+  };
+
+  // Agregar token al header si existe
+  const token = localStorage.getItem('token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_URL}${url}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
     credentials: 'include',
     ...options,
   });
 
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.mensaje || `HTTP ${response.status}`);
+    throw new Error(err.mensaje || err.error || `HTTP ${response.status}`);
   }
 
   return response.json();
