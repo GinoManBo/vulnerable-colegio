@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ofertasAPI, perfilAPI } from '../api';
+import PostulantesModal from '../components/PostulantesModal';
 import './VistaEmpresa.css';
 
 const ESPECIALIDADES = ['Electricidad industrial','Mecatrónica','Redes y comunicaciones','Automatización y PLC','Construcción','Otro'];
@@ -104,17 +105,18 @@ function FormPublicar({ onGuardar, onCancelar, inicial }) {
 }
 
 export default function VistaEmpresa({ usuario }) {
-  const [tab,          setTab]          = useState('dashboard');
-  const [mostrarForm,  setMostrarForm]  = useState(false);
-  const [editando,     setEditando]     = useState(null);
-  const [ofertas,      setOfertas]      = useState([]);
-  const [postulantes,  setPostulantes]  = useState([]);
-  const [filtroOferta, setFiltroOferta] = useState('todas');
-  const [perfil,       setPerfil]       = useState(null);
-  const [cargando,     setCargando]     = useState(true);
-  const [cargPost,     setCargPost]     = useState(false);
-  const [stats,        setStats]        = useState({ activas:0, totalPost:0, aceptados:0, total:0 });
-  const [error,        setError]        = useState('');
+  const [tab,              setTab]              = useState('dashboard');
+  const [mostrarForm,      setMostrarForm]      = useState(false);
+  const [editando,         setEditando]         = useState(null);
+  const [ofertas,          setOfertas]          = useState([]);
+  const [postulantes,      setPostulantes]      = useState([]);
+  const [filtroOferta,     setFiltroOferta]     = useState('todas');
+  const [perfil,           setPerfil]           = useState(null);
+  const [cargando,         setCargando]         = useState(true);
+  const [cargPost,         setCargPost]         = useState(false);
+  const [stats,            setStats]            = useState({ activas:0, totalPost:0, aceptados:0, total:0 });
+  const [error,            setError]            = useState('');
+  const [modalPostulantes, setModalPostulantes] = useState(null);
 
   useEffect(() => {
     setCargando(true);
@@ -262,6 +264,7 @@ export default function VistaEmpresa({ usuario }) {
                   </div>
                   <div className="emp-oferta-acciones">
                     <div className="emp-oferta-btns">
+                      <button className="emp-btn" title="Ver postulantes" onClick={()=>setModalPostulantes({id: o._id, titulo: o.titulo})}><IcoUsers/></button>
                       <button className="emp-btn" title="Editar" onClick={()=>setEditando(o)}><IcoEdit/></button>
                       <button className={`emp-btn ${o.activo?'danger':''}`} title={o.activo?'Cerrar oferta':'Reactivar'} onClick={()=>toggleActivo(o._id,o.activo)}>{o.activo?<IcoOff/>:<IcoOn/>}</button>
                       <Link to={`/oferta/${o._id}`} className="emp-btn" title="Ver pública">
@@ -340,6 +343,14 @@ export default function VistaEmpresa({ usuario }) {
           </div>
         )}
       </div>
+      
+      {modalPostulantes && (
+        <PostulantesModal
+          ofertaId={modalPostulantes.id}
+          ofertaTitulo={modalPostulantes.titulo}
+          onClose={() => setModalPostulantes(null)}
+        />
+      )}
     </div>
   );
 }

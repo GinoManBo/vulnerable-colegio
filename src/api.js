@@ -53,16 +53,16 @@ export const ofertasAPI = {
   }),
 
   // Obtener postulantes de una oferta
-  postulantes: (ofertaId) => fetchAPI(`/ofertas/${ofertaId}/postulantes`),
+  postulantes: (ofertaId) => fetchAPI(`/ofertas/${ofertaId}/postulaciones`),
 
   // Cambiar estado de una postulación
-  cambiarEstado: (postulacionId, estado) => fetchAPI(`/postulaciones/${postulacionId}/estado`, {
+  cambiarEstado: (postulacionId, estado) => fetchAPI(`/ofertas/postulaciones/${postulacionId}/estado`, {
     method: 'PATCH',
     body: JSON.stringify({ estado }),
   }),
 
   // Postularse a una oferta (estudiante)
-  postularse: (ofertaId, payload) => fetchAPI(`/ofertas/${ofertaId}/postularse`, {
+  postularse: (ofertaId, payload) => fetchAPI(`/ofertas/${ofertaId}/postular`, {
     method: 'POST',
     body: JSON.stringify(payload),
   }),

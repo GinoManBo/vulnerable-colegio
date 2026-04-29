@@ -18,6 +18,10 @@ export default function HomePage() {
   const [ordenar, setOrdenar] = useState('reciente');
   const [cargando, setCargando] = useState(true);
   const [ofertas, setOfertas] = useState([]);
+  
+  // Obtener usuario del localStorage
+  const usuarioJson = localStorage.getItem('usuario');
+  const usuario = usuarioJson ? JSON.parse(usuarioJson) : null;
 
   useEffect(() => {
     async function cargarOfertas() {
@@ -129,7 +133,7 @@ export default function HomePage() {
             ) : (
               ofertasFiltradas.map((o, i) => (
                 <div key={o._id} style={{ animation: `fadeInUp 0.3s ease both`, animationDelay: `${i * 0.06}s` }}>
-                  <JobCard oferta={o} destacada={o.destacada} />
+                  <JobCard oferta={o} destacada={o.destacada} usuario={usuario} />
                 </div>
               ))
             )}

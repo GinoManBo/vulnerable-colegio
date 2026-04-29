@@ -128,3 +128,36 @@
   white-space: nowrap;
 }
 .job-tiempo { color: var(--gris-2); font-size: 12px; }
+
+.btn-postular {
+  padding: 8px 16px;
+  background: linear-gradient(135deg, var(--azul) 0%, #0d3556 100%);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(26, 58, 92, 0.15);
+}
+
+.btn-postular:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0d3556 0%, #051f2e 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(26, 58, 92, 0.3);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-postular:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(26, 58, 92, 0.15);
+}
+
+.btn-postular:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  box-shadow: none;
+}

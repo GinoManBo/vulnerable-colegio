@@ -398,12 +398,16 @@ app.post('/api/ofertas/:id/postular', auth, soloRoles('estudiante'), async (req,
     const oferta = await PublicacionEmpleo.findById(req.params.id);
     if (!oferta || !oferta.activo) return res.status(404).json({ error: 'Oferta no disponible' });
 
-    const ya = await Postulacion.findOne({ empleo_id: oferta._id, estudiante_id: req.usuario._id });
+    // Obtener el perfil del estudiante
+    const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
+    if (!perfilEstudiante) return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
+
+    const ya = await Postulacion.findOne({ empleo_id: oferta._id, estudiante_id: perfilEstudiante._id });
     if (ya) return res.status(409).json({ error: 'Ya postulaste a esta oferta' });
 
     const post = await Postulacion.create({
       empleo_id:          oferta._id,
-      estudiante_id:      req.usuario._id,
+      estudiante_id:      perfilEstudiante._id,
       carta_presentacion: req.body.carta_presentacion || '',
     });
 
@@ -424,7 +428,11 @@ app.post('/api/ofertas/:id/postular', auth, soloRoles('estudiante'), async (req,
 app.get('/api/ofertas/:id/postulaciones', auth, soloRoles('empresa', 'admin'), async (req, res) => {
   try {
     const posts = await Postulacion.find({ empleo_id: req.params.id })
-      .populate('estudiante_id', 'nombre apellido email')
+      .populate({
+        path: 'estudiante_id',
+        select: 'foto_perfil_url intereses descripcion usuario_id',
+        populate: { path: 'usuario_id', select: 'nombre apellido email' }
+      })
       .sort({ postulado_en: -1 });
     res.json(posts);
   } catch (err) {
