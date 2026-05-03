@@ -1,0 +1,387 @@
+.mis-postulaciones {
+  padding: 40px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.mis-postulaciones-header {
+  margin-bottom: 40px;
+}
+
+.mis-postulaciones-header h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  margin: 0 0 8px 0;
+  color: var(--negro);
+}
+
+.mis-postulaciones-subtitle {
+  color: var(--gris-2);
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* Stats */
+.mis-postulaciones-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;  
+  
+}
+
+.stat-card {
+  background: linear-gradient(135deg, var(--azul-1) 0%, var(--azul-2) 100%);
+  border-radius: 8px;
+  padding: 20px;
+  color: white;
+  background-color: white;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  opacity: 0.9;
+  margin-bottom: 8px;
+  color: black;
+}
+
+.stat-number {
+  font-size: 2rem;
+  font-weight: 700;
+  color: black;
+}
+
+/* Filtros */
+.mis-postulaciones-filtros {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  color: black;
+}
+
+
+.filtro-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--gris-1);
+  border-radius: 20px;
+  background: white;
+  color: var(--gris-2);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: black;
+}
+
+.filtro-btn:hover {
+  border-color: var(--azul-1);
+  color: var(--azul-1);
+}
+
+.filtro-btn.active {
+  background: rgb(229, 229, 255);
+  border-color: var(--azul-1);
+  color: rgb(71, 71, 71);
+}
+
+/* Lista de postulaciones */
+.mis-postulaciones-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.postulacion-card {
+  background: white;
+  border: 1px solid var(--gris-1);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.postulacion-card:hover {
+  border-color: var(--azul-1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.postulacion-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--gris-1);
+  gap: 16px;
+}
+
+.postulacion-empresa {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.empresa-logo {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: var(--gris-1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.empresa-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logo-placeholder {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--azul-1);
+}
+
+.empresa-info {
+  min-width: 0;
+}
+
+.empresa-nombre {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--gris-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.oferta-titulo {
+  margin: 4px 0 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--negro);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Estado Badge */
+.estado-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.estado-pendiente {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.estado-revision {
+  background: #BFDBFE;
+  color: #1E40AF;
+}
+
+.estado-aceptada {
+  background: #BBEAD5;
+  color: #065F46;
+}
+
+.estado-rechazada {
+  background: #FECACA;
+  color: #7F1D1D;
+}
+
+.estado-contratado {
+  background: #D1D5DB;
+  color: #1F2937;
+}
+
+.estado-badge svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Card Body */
+.postulacion-card-body {
+  padding: 16px;
+}
+
+.oferta-detalles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.detalle-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detalle-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--gris-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detalle-valor {
+  font-size: 0.95rem;
+  color: var(--negro);
+}
+
+.detalle-valor.capitalize {
+  text-transform: capitalize;
+}
+
+.postulacion-timestamps {
+  display: flex;
+  gap: 24px;
+  padding-top: 12px;
+  border-top: 1px solid var(--gris-1);
+  flex-wrap: wrap;
+}
+
+.timestamp {
+  margin: 0;
+  font-size: 0.85rem;
+  display: flex;
+  gap: 8px;
+}
+
+.timestamp .label {
+  color: var(--gris-2);
+  font-weight: 500;
+}
+
+.timestamp .valor {
+  color: var(--negro);
+  font-weight: 500;
+}
+
+/* Card Footer */
+.postulacion-card-footer {
+  padding: 12px 16px;
+  background: var(--gris-0);
+  border-top: 1px solid var(--gris-1);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.btn-ver-oferta,
+.btn-chat-empresa {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--azul-1);
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  flex: 1;
+  min-width: 150px;
+  justify-content: center;
+}
+
+.btn-ver-oferta:hover,
+.btn-chat-empresa:hover {
+  background: var(--azul-2);
+  text-decoration: none;
+}
+
+.btn-chat-empresa {
+  background: var(--verde);
+}
+
+.btn-chat-empresa:hover {
+  background: #17A06B;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 60px 24px;
+  background: var(--gris-0);
+  border-radius: 8px;
+}
+
+.empty-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--negro);
+  margin: 0 0 8px 0;
+}
+
+.empty-subtitle {
+  color: var(--gris-2);
+  margin: 0 0 24px 0;
+}
+
+.empty-action {
+  display: inline-block;
+  padding: 10px 20px;
+  background: var(--azul-1);
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.empty-action:hover {
+  background: var(--azul-2);
+  text-decoration: none;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .mis-postulaciones {
+    padding: 24px 16px;
+  }
+
+  .mis-postulaciones-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .postulacion-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .estado-badge {
+    align-self: flex-start;
+  }
+
+  .oferta-detalles {
+    grid-template-columns: 1fr;
+  }
+
+  .postulacion-timestamps {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .mis-postulaciones-filtros {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

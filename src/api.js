@@ -40,6 +40,9 @@ export const ofertasAPI = {
   // Obtener una oferta específica
   obtener: (id) => fetchAPI(`/ofertas/${id}`),
 
+  // Alias para obtener detalles de una oferta
+  detalle: (id) => fetchAPI(`/ofertas/${id}`),
+
   // Crear nueva oferta (empresa)
   crear: (payload) => fetchAPI('/ofertas', {
     method: 'POST',
@@ -66,6 +69,12 @@ export const ofertasAPI = {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
+
+  // Obtener o postular a una oferta
+  postular: (ofertaId) => fetchAPI(`/ofertas/${ofertaId}/postular`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  }),
 };
 
 // ─────────────────────────────────────────────
@@ -83,6 +92,12 @@ export const perfilAPI = {
 
   // Obtener perfil de un usuario
   obtener: (usuarioId) => fetchAPI(`/perfil/usuario/${usuarioId}`),
+
+  // Obtener mis postulaciones
+  misPostulaciones: () => fetchAPI('/perfil/mis-postulaciones'),
+
+  // Obtener mis calificaciones
+  misCalificaciones: () => fetchAPI('/perfil/mis-calificaciones'),
 };
 
 // ─────────────────────────────────────────────
@@ -90,10 +105,10 @@ export const perfilAPI = {
 // ─────────────────────────────────────────────
 export const preguntasAPI = {
   // Obtener preguntas de una oferta
-  listar: (ofertaId) => fetchAPI(`/ofertas/${ofertaId}/preguntas`),
+  listar: (ofertaId) => fetchAPI(`/preguntas/${ofertaId}`),
 
   // Crear pregunta
-  crear: (ofertaId, payload) => fetchAPI(`/ofertas/${ofertaId}/preguntas`, {
+  crear: (ofertaId, payload) => fetchAPI(`/preguntas/${ofertaId}`, {
     method: 'POST',
     body: JSON.stringify(payload),
   }),

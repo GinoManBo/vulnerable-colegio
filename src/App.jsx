@@ -8,7 +8,9 @@ import Configuracion  from './pages/Configuracion';
 import VistaEmpresa   from './pages/VistaEmpresa';
 import DetalleOferta  from './pages/DetalleOferta';
 import Mensajes       from './pages/Mensajes';
+import ChatOferta     from './pages/ChatOferta';
 import PanelAdmin     from './pages/PanelAdmin';
+import MisPostulaciones from './pages/MisPostulaciones';
 import './index.css';
 
 function RutaProtegida({ usuario, roles, children }) {
@@ -53,6 +55,8 @@ export default function App() {
         <Route path="/perfil"        element={<RutaProtegida usuario={usuario}><MiPerfil usuario={usuario} /></RutaProtegida>} />
         <Route path="/configuracion" element={<RutaProtegida usuario={usuario}><Configuracion /></RutaProtegida>} />
         <Route path="/mensajes"      element={<RutaProtegida usuario={usuario}><Mensajes usuario={usuario} /></RutaProtegida>} />
+        <Route path="/mis-postulaciones" element={<RutaProtegida usuario={usuario} roles={['estudiante']}><MisPostulaciones usuario={usuario} /></RutaProtegida>} />
+        <Route path="/chat-oferta/:id" element={<RutaProtegida usuario={usuario} roles={['estudiante']}><ChatOferta usuario={usuario} /></RutaProtegida>} />
         <Route path="/oferta/:id"    element={<RutaProtegida usuario={usuario}><DetalleOferta usuario={usuario} /></RutaProtegida>} />
         <Route path="/admin"         element={<RutaProtegida usuario={usuario} roles={['admin']}><PanelAdmin usuario={usuario} /></RutaProtegida>} />
         <Route path="/empresa"       element={<RutaProtegida usuario={usuario} roles={['empresa','admin']}><VistaEmpresa usuario={usuario} /></RutaProtegida>} />
