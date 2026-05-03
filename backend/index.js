@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { connectDB } from './db.js';
 import { hashPassword, comparePassword } from './auth.js';
 import {
@@ -22,8 +24,31 @@ dotenv.config();
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({ origin: process.env.CLIENT_URL || 'http://localhost:5173', credentials: true }));
+// Para resolver rutas en ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = path.dirname(__filename);
+
+// CORS: permitir múltiples orígenes (desarrollo + producción)
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim());
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (ej. Postman, mobile apps)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // En producción, si NODE_ENV no es development, permitir cualquier origin
+    if (process.env.NODE_ENV === 'production') return callback(null, true);
+    callback(new Error('No permitido por CORS'));
+  },
+  credentials: true,
+}));
 app.use(express.json());
+
+// Servir archivos estáticos del frontend compilado (carpeta dist/)
+const distPath = path.resolve(__dirname, '..', 'dist');
+app.use(express.static(distPath));
 
 connectDB();
 
@@ -195,13 +220,13 @@ app.put('/api/perfil', auth, async (req, res) => {
           ...(intereses && { intereses: JSON.parse(intereses) }),
           ...(destrezas && { destrezas: JSON.parse(destrezas) }),
         },
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
       );
     } else if (req.usuario.rol === 'empresa') {
       perfil = await PerfilEmpresa.findOneAndUpdate(
         { usuario_id: req.usuario._id },
         { nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region },
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
       );
     }
     
@@ -224,7 +249,7 @@ app.put('/api/perfil/estudiante', auth, soloRoles('estudiante'), async (req, res
         ...(intereses && { intereses: JSON.parse(intereses) }),
         ...(destrezas && { destrezas: JSON.parse(destrezas) }),
       },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
     res.json(perfil);
   } catch (err) {
@@ -241,7 +266,7 @@ app.put('/api/perfil/empresa', auth, soloRoles('empresa'), async (req, res) => {
     const perfil = await PerfilEmpresa.findOneAndUpdate(
       { usuario_id: req.usuario._id },
       { nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region },
-      { new: true, upsert: true }
+      { returnDocument: 'after', upsert: true }
     );
     res.json(perfil);
   } catch (err) {
@@ -249,9 +274,40 @@ app.put('/api/perfil/empresa', auth, soloRoles('empresa'), async (req, res) => {
   }
 });
 
+// Obtener perfil público de un usuario por su ID
+app.get('/api/perfil/usuario/:usuarioId', auth, async (req, res) => {
+  try {
+    const usuario = await User.findById(req.params.usuarioId).select('-password_hash');
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    let perfil = null;
+    if (usuario.rol === 'estudiante') {
+      perfil = await PerfilEstudiante.findOne({ usuario_id: usuario._id })
+        .select('foto_perfil_url especialidad descripcion intereses destrezas ciudad linkedin');
+    } else if (usuario.rol === 'empresa') {
+      perfil = await PerfilEmpresa.findOne({ usuario_id: usuario._id })
+        .select('nombre_empresa logo_url descripcion rubro sitio_web telefono ciudad region');
+    }
+
+    res.json({
+      _id: usuario._id,
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      email: usuario.email,
+      rol: usuario.rol,
+      perfil,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/perfil/mis-postulaciones', auth, soloRoles('estudiante'), async (req, res) => {
   try {
-    const posts = await Postulacion.find({ estudiante_id: req.usuario._id })
+    const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
+    if (!perfilEstudiante) return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
+    
+    const posts = await Postulacion.find({ estudiante_id: perfilEstudiante._id })
       .populate({
         path: 'empleo_id',
         select: 'titulo ubicacion modalidad salario_min salario_max activo',
@@ -264,9 +320,47 @@ app.get('/api/perfil/mis-postulaciones', auth, soloRoles('estudiante'), async (r
   }
 });
 
+app.delete('/api/perfil/postulaciones/:postId/retirar', auth, soloRoles('estudiante'), async (req, res) => {
+  try {
+    const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
+    if (!perfilEstudiante) return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
+    
+    console.log('Retirando postulación:', { postId: req.params.postId, estudianteId: perfilEstudiante._id.toString() });
+    
+    const { Types } = await import('mongoose');
+    let postIdObj;
+    try {
+      postIdObj = new Types.ObjectId(req.params.postId);
+    } catch {
+      return res.status(400).json({ error: 'ID de postulación inválido' });
+    }
+    
+    const post = await Postulacion.findOneAndDelete({ _id: postIdObj, estudiante_id: perfilEstudiante._id });
+    if (!post) return res.status(404).json({ error: 'Postulación no encontrada' });
+    console.log('Postulación retirada:', post._id.toString());
+
+    // Crear notificación de postulación retirada
+    await Notificacion.create({
+      usuario_id: req.usuario._id,
+      tipo: 'otra',
+      titulo: 'Postulación retirada',
+      texto: 'Has retirado tu postulación exitosamente.',
+      link: '/mis-postulaciones',
+    });
+
+    res.json({ ok: true, mensaje: 'Postulación retirada' });
+  } catch (err) {
+    console.error('Error retirando postulación:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/perfil/mis-calificaciones', auth, soloRoles('estudiante'), async (req, res) => {
   try {
-    const califs = await CalificacionTrabajo.find({ estudiante_id: req.usuario._id })
+    const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
+    if (!perfilEstudiante) return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
+    
+    const califs = await CalificacionTrabajo.find({ estudiante_id: perfilEstudiante._id })
       .populate('empresa_id', 'nombre_empresa')
       .populate('postulacion_id')
       .sort({ creado_en: -1 });
@@ -276,6 +370,38 @@ app.get('/api/perfil/mis-calificaciones', auth, soloRoles('estudiante'), async (
   }
 });
 
+// Helper: notificar a postulantes cuando una oferta se cierra/elimina
+async function notificarCierreOferta(empleoId, tituloOferta) {
+  try {
+    const postulaciones = await Postulacion.find({ empleo_id: empleoId });
+    if (!postulaciones.length) return;
+
+    // Obtener perfiles de estudiantes para tener sus usuario_id
+    const estudianteIds = postulaciones.map(p => p.estudiante_id);
+    const perfiles = await PerfilEstudiante.find({ _id: { $in: estudianteIds } }).select('usuario_id');
+
+    const notificaciones = perfiles.map(perfil => ({
+      usuario_id: perfil.usuario_id,
+      tipo: 'otra',
+      titulo: 'Oferta cerrada',
+      texto: `La oferta "${tituloOferta}" fue cerrada o eliminada por la empresa.`,
+      link: `/mis-postulaciones`,
+    }));
+
+    if (notificaciones.length) {
+      await Notificacion.insertMany(notificaciones);
+    }
+
+    // Actualizar postulaciones a estado rechazada
+    await Postulacion.updateMany(
+      { empleo_id: empleoId },
+      { estado: 'rechazada' }
+    );
+  } catch (err) {
+    console.error('Error notificando cierre de oferta:', err);
+  }
+}
+
 // ─────────────────────────────────────────────
 //  OFERTAS
 //  IMPORTANTE: /mis-ofertas debe ir ANTES de /:id
@@ -284,7 +410,15 @@ app.get('/api/perfil/mis-calificaciones', auth, soloRoles('estudiante'), async (
 app.get('/api/ofertas', auth, async (req, res) => {
   try {
     const { modalidad, especialidad, orden = 'reciente', page = 1, limit = 20 } = req.query;
-    const filtro = { activo: true };
+    const ahora = new Date();
+    const filtro = {
+      activo: true,
+      $or: [
+        { cierre_en: null },
+        { cierre_en: { $exists: false } },
+        { cierre_en: { $gte: ahora } }
+      ]
+    };
     if (modalidad && modalidad !== 'todos') filtro.modalidad = modalidad;
     if (especialidad && especialidad !== 'Todas') filtro.especialidades_requeridas = { $in: [especialidad] };
 
@@ -318,13 +452,13 @@ app.patch('/api/ofertas/postulaciones/:postId/estado', auth, soloRoles('empresa'
     const validos = ['pendiente','en_revision','aceptada','rechazada','contratado'];
     if (!validos.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
 
-    const post = await Postulacion.findByIdAndUpdate(req.params.postId, { estado }, { new: true })
-      .populate('estudiante_id', 'nombre email')
+    const post = await Postulacion.findByIdAndUpdate(req.params.postId, { estado }, { returnDocument: 'after' })
+      .populate('estudiante_id', 'usuario_id')
       .populate('empleo_id', 'titulo');
 
-    if ((estado === 'aceptada' || estado === 'rechazada') && post?.estudiante_id && post?.empleo_id) {
+    if ((estado === 'aceptada' || estado === 'rechazada') && post?.estudiante_id?.usuario_id && post?.empleo_id) {
       await Notificacion.create({
-        usuario_id: post.estudiante_id._id,
+        usuario_id: post.estudiante_id.usuario_id,
         tipo:  estado === 'aceptada' ? 'aceptado' : 'rechazado',
         titulo:estado === 'aceptada' ? 'Postulación aceptada' : 'Postulación rechazada',
         texto: `Tu postulación a "${post.empleo_id.titulo}" fue ${estado}.`,
@@ -376,8 +510,17 @@ app.put('/api/ofertas/:id', auth, soloRoles('empresa', 'admin'), async (req, res
     const campos = ['titulo','descripcion','ubicacion','salario_min','salario_max','modalidad','especialidades_requeridas','activo','cierre_en'];
     const update = {};
     campos.forEach(c => { if (req.body[c] !== undefined) update[c] = req.body[c]; });
-    const oferta = await PublicacionEmpleo.findByIdAndUpdate(req.params.id, update, { new: true });
-    if (!oferta) return res.status(404).json({ error: 'Oferta no encontrada' });
+
+    const ofertaAnterior = await PublicacionEmpleo.findById(req.params.id);
+    if (!ofertaAnterior) return res.status(404).json({ error: 'Oferta no encontrada' });
+
+    const oferta = await PublicacionEmpleo.findByIdAndUpdate(req.params.id, update, { returnDocument: 'after' });
+
+    // Si la oferta se desactivó (cerró), notificar a postulantes
+    if (ofertaAnterior.activo === true && oferta.activo === false) {
+      await notificarCierreOferta(oferta._id, oferta.titulo);
+    }
+
     res.json(oferta);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -386,8 +529,15 @@ app.put('/api/ofertas/:id', auth, soloRoles('empresa', 'admin'), async (req, res
 
 app.delete('/api/ofertas/:id', auth, soloRoles('empresa', 'admin'), async (req, res) => {
   try {
+    const oferta = await PublicacionEmpleo.findById(req.params.id);
+    if (!oferta) return res.status(404).json({ error: 'Oferta no encontrada' });
+
     await PublicacionEmpleo.findByIdAndDelete(req.params.id);
-    res.json({ ok: true });
+
+    // Notificar a postulantes
+    await notificarCierreOferta(oferta._id, oferta.titulo);
+
+    res.json({ ok: true, mensaje: 'Oferta eliminada y postulantes notificados' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -413,7 +563,7 @@ app.post('/api/ofertas/:id/postular', auth, soloRoles('estudiante'), async (req,
 
     await Notificacion.create({
       usuario_id: req.usuario._id,
-      tipo: 'nueva_oferta',
+      tipo: 'postulacion',
       titulo: 'Postulación enviada',
       texto:  `Tu postulación a "${oferta.titulo}" fue enviada correctamente.`,
       link:   `/oferta/${oferta._id}`,
@@ -645,7 +795,7 @@ app.get('/api/admin/usuarios', auth, soloRoles('admin'), async (req, res) => {
 
 app.patch('/api/admin/usuarios/:id/activo', auth, soloRoles('admin'), async (req, res) => {
   try {
-    const u = await User.findByIdAndUpdate(req.params.id, { activo: req.body.activo }, { new: true }).select('-password_hash');
+    const u = await User.findByIdAndUpdate(req.params.id, { activo: req.body.activo }, { returnDocument: 'after' }).select('-password_hash');
     res.json(u);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -676,9 +826,19 @@ app.get('/api/admin/todas-ofertas', auth, soloRoles('admin'), async (req, res) =
 //  HEALTH + RAÍZ
 // ─────────────────────────────────────────────
 app.get('/api/health', (_, res) => res.json({ status: 'ok', ts: new Date() }));
-app.get('/', (_, res) => res.json({ mensaje: `Servidor corriendo en puerto ${PORT}` }));
+
+// Catch-all: para cualquier ruta que NO sea /api, servir el frontend (SPA)
+// Esto permite que React Router maneje rutas como /mis-postulaciones, /oferta/:id, etc.
+// Usamos app.use() sin path porque Express 5 no acepta '*' en app.get()
+app.use((req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Ruta API no encontrada' });
+  }
+  res.sendFile(path.resolve(distPath, 'index.html'));
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor en http://localhost:${PORT}`);
   console.log(`📡 API en http://localhost:${PORT}/api`);
+  console.log(`🎨 Frontend servido desde: ${distPath}`);
 });

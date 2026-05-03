@@ -305,7 +305,7 @@ export default function VistaEmpresa({ usuario }) {
                       <select value={p.estado} onChange={e=>cambiarEstadoPost(p._id,e.target.value)} className="estado-select">
                         {Object.entries(ESTADO_CFG).map(([v,{label}])=><option key={v} value={v}>{label}</option>)}
                       </select>
-                      <Link to={`/perfil/${p.estudiante_id?._id}`} className="emp-btn">
+                      <Link to={`/perfil/${p.estudiante_id?.usuario_id?._id}`} className="emp-btn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                       </Link>
                     </div>

@@ -1,7 +1,21 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// Detecta automáticamente la URL del API según el entorno
+function getApiUrl() {
+  // Si hay una variable de entorno explícita, usarla
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Si NO estamos en localhost, asumir que el backend está en el mismo dominio
+  if (!window.location.hostname.includes('localhost')) {
+    return '/api';
+  }
+  // Desarrollo local
+  return 'http://localhost:5000/api';
+}
+
+const API_URL = getApiUrl();
 
 // Helper para hacer fetch
-async function fetchAPI(url, options = {}) {
+export async function fetchAPI(url, options = {}) {
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -96,6 +110,11 @@ export const perfilAPI = {
   // Obtener mis postulaciones
   misPostulaciones: () => fetchAPI('/perfil/mis-postulaciones'),
 
+  // Retirar una postulación
+  retirarPostulacion: (postId) => fetchAPI(`/perfil/postulaciones/${postId}/retirar`, {
+    method: 'DELETE',
+  }),
+
   // Obtener mis calificaciones
   misCalificaciones: () => fetchAPI('/perfil/mis-calificaciones'),
 };
@@ -130,21 +149,21 @@ export const preguntasAPI = {
 // ─────────────────────────────────────────────
 export const mensajesAPI = {
   // Obtener conversaciones del usuario
-  conversaciones: () => fetchAPI('/mensajes/conversaciones'),
+  conversaciones: () => fetchAPI('/mensajes'),
 
   // Obtener mensajes de una conversación
-  obtener: (conversacionId) => fetchAPI(`/mensajes/conversaciones/${conversacionId}`),
+  obtener: (conversacionId) => fetchAPI(`/mensajes/${conversacionId}`),
 
   // Enviar mensaje
-  enviar: (conversacionId, payload) => fetchAPI(`/mensajes/conversaciones/${conversacionId}`, {
+  enviar: (conversacionId, payload) => fetchAPI(`/mensajes/${conversacionId}`, {
     method: 'POST',
     body: JSON.stringify(payload),
   }),
 
   // Crear conversación con otro usuario
-  iniciar: (usuarioId) => fetchAPI('/mensajes/conversaciones', {
+  iniciar: (usuarioId) => fetchAPI('/mensajes/conversacion', {
     method: 'POST',
-    body: JSON.stringify({ usuarioId }),
+    body: JSON.stringify({ destinatario_id: usuarioId }),
   }),
 
   // Marcar mensaje como leído
@@ -212,4 +231,17 @@ export const authAPI = {
 
   // Verificar sesión
   verificar: () => fetchAPI('/auth/me').catch(() => null),
+};
+
+// ─────────────────────────────────────────────
+//  NOTIFICACIONES
+// ─────────────────────────────────────────────
+export const notificacionesAPI = {
+  // Obtener notificaciones
+  listar: () => fetchAPI('/notificaciones'),
+
+  // Marcar todas como leídas
+  marcarTodasLeidas: () => fetchAPI('/notificaciones/leer-todas', {
+    method: 'PATCH',
+  }),
 };

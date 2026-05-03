@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ofertasAPI } from '../api';
+import { ofertasAPI, perfilAPI } from '../api';
 import JobCard from '../components/JobCard';
 import ProfileSidebar from '../components/ProfileSidebar';
 import './HomePage.css';
@@ -18,26 +18,54 @@ export default function HomePage() {
   const [ordenar, setOrdenar] = useState('reciente');
   const [cargando, setCargando] = useState(true);
   const [ofertas, setOfertas] = useState([]);
-  
+  const [misPostulacionesIds, setMisPostulacionesIds] = useState(new Set());
+
   // Obtener usuario del localStorage
   const usuarioJson = localStorage.getItem('usuario');
   const usuario = usuarioJson ? JSON.parse(usuarioJson) : null;
 
   useEffect(() => {
-    async function cargarOfertas() {
+    async function cargarDatos() {
       try {
-        const datos = await ofertasAPI.listar();
+        const [datosOfertas, postulaciones] = await Promise.all([
+          ofertasAPI.listar(),
+          usuario?.rol === 'estudiante' ? perfilAPI.misPostulaciones() : Promise.resolve([]),
+        ]);
         // El endpoint retorna { ofertas, total, paginas }
-        setOfertas(datos.ofertas || datos || []);
+        setOfertas(datosOfertas.ofertas || datosOfertas || []);
+
+        // Guardar IDs de ofertas ya postuladas
+        const postuladosIds = new Set(
+          (postulaciones || []).map(p => p.empleo_id?._id?.toString() || p.empleo_id?.toString())
+        );
+        setMisPostulacionesIds(postuladosIds);
       } catch (err) {
-        console.error('Error cargando ofertas:', err);
+        console.error('Error cargando datos:', err);
         setOfertas([]);
       } finally {
         setCargando(false);
       }
     }
-    cargarOfertas();
+    cargarDatos();
   }, []);
+
+  // Escuchar evento para recargar postulaciones (ej. después de retirar)
+  useEffect(() => {
+    async function handleActualizar() {
+      if (usuario?.rol !== 'estudiante') return;
+      try {
+        const postulaciones = await perfilAPI.misPostulaciones();
+        const postuladosIds = new Set(
+          (postulaciones || []).map(p => p.empleo_id?._id?.toString() || p.empleo_id?.toString())
+        );
+        setMisPostulacionesIds(postuladosIds);
+      } catch (err) {
+        console.error('Error recargando postulaciones:', err);
+      }
+    }
+    window.addEventListener('actualizar-postulaciones', handleActualizar);
+    return () => window.removeEventListener('actualizar-postulaciones', handleActualizar);
+  }, [usuario]);
 
   const ofertasFiltradas = ofertas
     .filter(o => modalidad === 'todos' || o.modalidad === modalidad)
@@ -133,7 +161,7 @@ export default function HomePage() {
             ) : (
               ofertasFiltradas.map((o, i) => (
                 <div key={o._id} style={{ animation: `fadeInUp 0.3s ease both`, animationDelay: `${i * 0.06}s` }}>
-                  <JobCard oferta={o} destacada={o.destacada} usuario={usuario} />
+                  <JobCard oferta={o} destacada={o.destacada} usuario={usuario} yaPostulado={misPostulacionesIds.has(o._id?.toString())} />
                 </div>
               ))
             )}

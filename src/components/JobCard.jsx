@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ofertasAPI } from '../api';
 import ConfirmDialog from './ConfirmDialog';
 import './JobCard.css';
@@ -75,6 +75,23 @@ function IcoCorazon({ lleno }) {
   );
 }
 
+function IcoCheck() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
+  );
+}
+
 function formatSalario(min, max) {
   const fmt = (n) => '$' + Math.round(Number(n)).toLocaleString('es-CL');
 
@@ -111,10 +128,12 @@ export default function JobCard({
   destacada = false,
   usuario,
   onPostuladoExito,
+  yaPostulado = false,
 }) {
   const [guardada, setGuardada] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [mostrarConfirm, setMostrarConfirm] = useState(false);
+  const [postuladoLocal, setPostuladoLocal] = useState(false);
 
   const navigate = useNavigate();
 
@@ -135,6 +154,12 @@ export default function JobCard({
     nombre_empresa: 'Empresa',
     logo_url: null,
   };
+
+  function handleCardClick(e) {
+    // Solo navegar si el click no fue en un botón
+    if (e.target.closest('button')) return;
+    navigate(`/oferta/${_id}`);
+  }
 
   async function handlePostular(e) {
     e.preventDefault();
@@ -163,7 +188,12 @@ export default function JobCard({
 
       alert('¡Postulación enviada exitosamente!');
 
+      setPostuladoLocal(true);
       setMostrarConfirm(false);
+
+      // Disparar eventos para actualizar UI
+      window.dispatchEvent(new Event('recargar-notificaciones'));
+      window.dispatchEvent(new Event('actualizar-postulaciones'));
 
       if (onPostuladoExito) {
         onPostuladoExito();
@@ -171,7 +201,13 @@ export default function JobCard({
     } catch (err) {
       console.error('Error postulando:', err);
 
+      // Si el error es "Ya postulaste", marcamos como postulado
+      if (err.message?.includes('Ya postulaste')) {
+        setPostuladoLocal(true);
+      }
+
       alert(`Error: ${err.message || 'No se pudo realizar la postulación'}`);
+      setMostrarConfirm(false);
     } finally {
       setCargando(false);
     }
@@ -186,11 +222,12 @@ export default function JobCard({
 
   return (
     <>
-      <Link
-        to={`/oferta/${_id}`}
+      <div
+        onClick={handleCardClick}
         className={`job-card card ${
           destacada ? 'job-card--destacada' : ''
         }`}
+        style={{ cursor: 'pointer' }}
       >
         {destacada && (
           <div className="job-card-destacada-badge">
@@ -295,19 +332,26 @@ export default function JobCard({
             </span>
 
             {usuario?.rol === 'estudiante' && (
-              <button
-                type="button"
-                className="btn-postular"
-                onClick={handlePostular}
-                disabled={cargando}
-                title="Postularse a esta oferta"
-              >
-                {cargando ? '...' : 'Postular'}
-              </button>
+              (yaPostulado || postuladoLocal) ? (
+                <div className="btn-postulado" title="Ya postulaste a esta oferta">
+                  <IcoCheck />
+                  Postulado
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-postular"
+                  onClick={handlePostular}
+                  disabled={cargando}
+                  title="Postularse a esta oferta"
+                >
+                  {cargando ? '...' : 'Postular'}
+                </button>
+              )
             )}
           </div>
         </div>
-      </Link>
+      </div>
 
       {mostrarConfirm && (
         <ConfirmDialog

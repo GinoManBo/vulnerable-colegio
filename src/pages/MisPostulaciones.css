@@ -171,6 +171,36 @@
 }
 
 /* Estado Badge */
+.btn-retirar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  color: var(--rojo);
+  border: 1px solid var(--rojo);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-retirar:hover {
+  background: var(--rojo);
+  color: white;
+}
+
+.btn-retirar:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-retirar svg {
+  width: 14px;
+  height: 14px;
+}
+
 .estado-badge {
   display: flex;
   align-items: center;
@@ -285,6 +315,7 @@
 }
 
 .btn-ver-oferta,
+.btn-chat-oferta,
 .btn-chat-empresa {
   display: inline-flex;
   align-items: center;
@@ -303,9 +334,18 @@
 }
 
 .btn-ver-oferta:hover,
+.btn-chat-oferta:hover,
 .btn-chat-empresa:hover {
   background: var(--azul-2);
   text-decoration: none;
+}
+
+.btn-chat-oferta {
+  background: #8B5CF6;
+}
+
+.btn-chat-oferta:hover {
+  background: #7C3AED;
 }
 
 .btn-chat-empresa {

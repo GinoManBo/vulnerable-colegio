@@ -31,6 +31,10 @@ function IcoMessageSquare() {
   return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>;
 }
 
+function IcoTrash() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>;
+}
+
 function obtenerBadgeEstado(estado) {
   const estados = {
     pendiente: { clase: 'estado-pendiente', label: 'Pendiente', icono: IcoClock },
@@ -42,10 +46,11 @@ function obtenerBadgeEstado(estado) {
   return estados[estado] || estados.pendiente;
 }
 
-export default function MisPostulaciones() {
+export default function MisPostulaciones({ usuario }) {
   const [postulaciones, setPostulaciones] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [filtro, setFiltro] = useState('todas');
+  const [retirandoId, setRetirandoId] = useState(null);
 
   useEffect(() => {
     async function cargarPostulaciones() {
@@ -66,6 +71,27 @@ export default function MisPostulaciones() {
     if (filtro === 'todas') return true;
     return p.estado === filtro;
   });
+
+  async function retirarPostulacion(postId) {
+    if (!confirm('¿Estás seguro de que deseas retirar esta postulación?')) return;
+    setRetirandoId(postId);
+    try {
+      const postIdStr = String(postId);
+      console.log('MisPostulaciones - retirando postId:', postIdStr);
+      const resultado = await perfilAPI.retirarPostulacion(postIdStr);
+      console.log('MisPostulaciones - resultado:', resultado);
+      setPostulaciones(prev => prev.filter(p => p._id !== postId));
+      // Disparar evento para actualizar botones de JobCards en HomePage
+      window.dispatchEvent(new Event('actualizar-postulaciones'));
+      window.dispatchEvent(new Event('recargar-notificaciones'));
+      alert('Postulación retirada exitosamente');
+    } catch (err) {
+      console.error('MisPostulaciones - error:', err);
+      alert(err.message || 'No se pudo retirar la postulación');
+    } finally {
+      setRetirandoId(null);
+    }
+  }
 
   const estadosCuenta = {
     aceptada: postulaciones.filter(p => p.estado === 'aceptada').length,
@@ -186,9 +212,20 @@ export default function MisPostulaciones() {
                       <p className="oferta-titulo">{oferta?.titulo || 'Oferta'}</p>
                     </div>
                   </div>
-                  <div className={`estado-badge ${estadoInfo.clase}`}>
-                    <IconoEstado />
-                    <span>{estadoInfo.label}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      className="btn-retirar"
+                      onClick={() => retirarPostulacion(post._id)}
+                      disabled={retirandoId === post._id}
+                      title="Retirar postulación"
+                    >
+                      <IcoTrash />
+                      {retirandoId === post._id ? 'Retirando...' : 'Retirar'}
+                    </button>
+                    <div className={`estado-badge ${estadoInfo.clase}`}>
+                      <IconoEstado />
+                      <span>{estadoInfo.label}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -233,6 +270,10 @@ export default function MisPostulaciones() {
                 <div className="postulacion-card-footer">
                   <Link to={`/oferta/${oferta?._id}`} className="btn-ver-oferta">
                     Ver oferta completa
+                  </Link>
+                  <Link to={`/chat-oferta/${oferta?._id}`} className="btn-chat-oferta">
+                    <IcoMessageSquare />
+                    Chat de la oferta
                   </Link>
                   <Link to="/mensajes" className="btn-chat-empresa">
                     <IcoChat />

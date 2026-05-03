@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ofertasAPI, preguntasAPI } from '../api';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ofertasAPI, preguntasAPI, perfilAPI } from '../api';
 import './DetalleOferta.css';
 
 function fmt(n){ return '$'+Math.round(n).toLocaleString('es-CL'); }
@@ -14,27 +14,52 @@ function Avatar({ nombre, rol, size=34 }) {
 
 export default function DetalleOferta({ usuario }) {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [oferta,       setOferta]       = useState(null);
   const [preguntas,    setPreguntas]    = useState([]);
   const [nuevaPreg,    setNuevaPreg]    = useState('');
   const [respondiendo, setRespondiendo] = useState(null);
   const [respTexto,    setRespTexto]    = useState('');
   const [postulado,    setPostulado]    = useState(false);
+  const [postulacionId, setPostulacionId] = useState(null);
   const [postulando,   setPostulando]   = useState(false);
+  const [retirando,    setRetirando]    = useState(false);
   const [cargando,     setCargando]     = useState(true);
   const [error,        setError]        = useState('');
 
   useEffect(() => {
     setCargando(true);
-    Promise.all([
+    const promises = [
       ofertasAPI.detalle(id),
       preguntasAPI.listar(id),
-    ]).then(([of, preg]) => {
+    ];
+    // Si es estudiante, cargar sus postulaciones para saber si ya postuló a esta oferta
+    if (usuario?.rol === 'estudiante') {
+      promises.push(perfilAPI.misPostulaciones());
+    }
+    Promise.all(promises).then((results) => {
+      const [of, preg, postulaciones] = results;
       setOferta(of);
       setPreguntas(preg);
+      if (postulaciones && Array.isArray(postulaciones)) {
+        const yaPostulado = postulaciones.find(p => {
+          const empleoId = p.empleo_id;
+          const ofertaId = empleoId?._id?.toString() ?? (typeof empleoId === 'string' ? empleoId : null);
+          return ofertaId === id;
+        });
+        if (yaPostulado) {
+          const postId = typeof yaPostulado._id === 'string' ? yaPostulado._id : yaPostulado._id?.toString();
+          console.log('Postulación encontrada:', { id: postId, empleo: yaPostulado.empleo_id?._id?.toString() });
+          setPostulado(true);
+          setPostulacionId(postId);
+        } else {
+          setPostulado(false);
+          setPostulacionId(null);
+        }
+      }
     }).catch(e => setError(e.message))
       .finally(() => setCargando(false));
-  }, [id]);
+  }, [id, usuario]);
 
   async function enviarPregunta() {
     if (!nuevaPreg.trim()) return;
@@ -56,13 +81,46 @@ export default function DetalleOferta({ usuario }) {
 
   async function postular() {
     setPostulando(true);
+    setError('');
     try {
-      await ofertasAPI.postular(id);
+      const resultado = await ofertasAPI.postular(id);
       setPostulado(true);
+      if (resultado?._id) {
+        setPostulacionId(resultado._id);
+      }
+      // Disparar evento para que el NavBar recargue notificaciones
+      window.dispatchEvent(new Event('recargar-notificaciones'));
     } catch(err) {
-      if (err.message?.includes('Ya postulaste')) setPostulado(true);
-      else setError(err.message);
+      if (err.message?.includes('Ya postulaste')) {
+        setPostulado(true);
+      } else {
+        setError(err.message);
+      }
     } finally { setPostulando(false); }
+  }
+
+  async function retirarPostulacion() {
+    console.log('Intentando retirar - postulacionId:', postulacionId, 'tipo:', typeof postulacionId);
+    if (!postulacionId) {
+      setError('No se encontró la postulación para retirar');
+      return;
+    }
+    if (!confirm('¿Estás seguro de que deseas retirar tu postulación?')) return;
+    setRetirando(true);
+    setError('');
+    try {
+      const postId = String(postulacionId);
+      console.log('Enviando a API postId:', postId);
+      const resultado = await perfilAPI.retirarPostulacion(postId);
+      console.log('Resultado API:', resultado);
+      setPostulado(false);
+      setPostulacionId(null);
+      window.dispatchEvent(new Event('actualizar-postulaciones'));
+      window.dispatchEvent(new Event('recargar-notificaciones'));
+    } catch(err) {
+      console.error('Error retirando:', err);
+      setError(err.message || 'No se pudo retirar la postulación');
+    } finally { setRetirando(false); }
   }
 
   const esEmpresa = usuario?.rol === 'empresa';
@@ -125,10 +183,25 @@ export default function DetalleOferta({ usuario }) {
                   {oferta.cierre_en && <span className="dof-meta-item">Cierra: {new Date(oferta.cierre_en).toLocaleDateString('es-CL')}</span>}
                 </div>
               </div>
-              <div className="dof-header-action">
+              <div className="dof-header-action" style={{flexDirection:'column',gap:'8px',alignItems:'flex-end'}}>
                 {!esEmpresa && !esAdmin && (
                   postulado
-                    ? <div className="dof-postulado"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--verde)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>Postulado</div>
+                    ? (
+                      <>
+                        <div className="dof-postulado">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--verde)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          Postulado
+                        </div>
+                        <button
+                          className="dof-retirar-btn"
+                          onClick={retirarPostulacion}
+                          disabled={retirando}
+                          title="Retirar postulación"
+                        >
+                          {retirando ? 'Retirando...' : 'Retirar postulación'}
+                        </button>
+                      </>
+                    )
                     : <button className={`btn-verde dof-postular-btn ${postulando?'loading':''}`} disabled={postulando||!oferta.activo} onClick={postular}>
                         {postulando
                           ? <><span className="spinner" style={{width:14,height:14,border:'2px solid rgba(255,255,255,.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>Enviando...</>

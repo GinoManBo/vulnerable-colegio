@@ -187,7 +187,7 @@ const notificacionSchema = new Schema(
     usuario_id: { type: Types.ObjectId, ref: "User", required: true },
     tipo: {
       type: String,
-      enum: ["aceptado", "rechazado", "calificacion", "mensaje", "otra"],
+      enum: ["aceptado", "rechazado", "calificacion", "mensaje", "postulacion", "otra"],
       default: "otra",
     },
     titulo: { type: String, required: true },

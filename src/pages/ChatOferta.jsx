@@ -142,8 +142,6 @@ export default function ChatOferta({ usuario }) {
             <h3 className="chat-oferta-chat-titulo">Chat con {empresa.nombre_empresa}</h3>
             <p className="chat-oferta-chat-sub">Comunícate directamente con la empresa sobre esta oferta</p>
 
-            {error && <div style={{ padding: '10px 14px', background: 'var(--rojo-light)', color: 'var(--rojo)', borderRadius: 'var(--radius-md)', fontSize: 13, marginBottom: 12 }}>{error}</div>}
-
             <div className="chat-oferta-mensajes-list">
               {mensajes.length === 0 && (
                 <div className="chat-oferta-empty">

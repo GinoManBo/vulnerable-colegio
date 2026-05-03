@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { notificacionesAPI } from '../api';
 import './navbar.css';
 
 function IcoHome()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>; }
@@ -10,13 +11,17 @@ function IcoSearch() { return <svg width="16" height="16" viewBox="0 0 24 24" fi
 function IcoChevron(){ return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>; }
 
 function tipoNotifColor(tipo) {
-  if (tipo === 'aceptado')  return 'badge-verde';
-  if (tipo === 'rechazado') return 'badge-rojo';
+  if (tipo === 'aceptado')   return 'badge-verde';
+  if (tipo === 'rechazado')  return 'badge-rojo';
+  if (tipo === 'postulacion')return 'badge-azul';
+  if (tipo === 'otra')       return 'badge-gris';
   return 'badge-azul';
 }
 function tipoNotifLabel(tipo) {
-  if (tipo === 'aceptado')  return 'Aceptado';
-  if (tipo === 'rechazado') return 'Rechazado';
+  if (tipo === 'aceptado')   return 'Aceptado';
+  if (tipo === 'rechazado')  return 'Rechazado';
+  if (tipo === 'postulacion')return 'Postulación';
+  if (tipo === 'otra')       return 'Información';
   return 'Nueva oferta';
 }
 
@@ -33,6 +38,38 @@ export default function NavBar({ usuario, onLogout }) {
 
   const noLeidas = notifs.filter(n => !n.leida).length;
 
+  // Cargar notificaciones desde el backend
+  async function cargarNotificaciones() {
+    if (!usuario) return;
+    try {
+      const data = await notificacionesAPI.listar();
+      const notifsFormateadas = (data.notifs || []).map(n => ({
+        id: n._id,
+        tipo: n.tipo,
+        texto: n.texto || n.titulo,
+        sub: n.titulo,
+        leida: n.leida,
+        tiempo: new Date(n.creado_en).toLocaleDateString('es-CL'),
+      }));
+      setNotifs(notifsFormateadas);
+    } catch (err) {
+      console.error('Error cargando notificaciones:', err);
+    }
+  }
+
+  useEffect(() => {
+    cargarNotificaciones();
+  }, [usuario]);
+
+  // Escuchar evento para recargar notificaciones (ej. después de postular)
+  useEffect(() => {
+    function handleRecargar() {
+      cargarNotificaciones();
+    }
+    window.addEventListener('recargar-notificaciones', handleRecargar);
+    return () => window.removeEventListener('recargar-notificaciones', handleRecargar);
+  }, []);
+
   useEffect(() => {
     function handleClick(e) {
       if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearch(false);
@@ -43,8 +80,13 @@ export default function NavBar({ usuario, onLogout }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  function marcarTodasLeidas() {
-    setNotifs(prev => prev.map(n => ({ ...n, leida: true })));
+  async function marcarTodasLeidas() {
+    try {
+      await notificacionesAPI.marcarTodasLeidas();
+      setNotifs(prev => prev.map(n => ({ ...n, leida: true })));
+    } catch (err) {
+      console.error('Error marcando notificaciones como leídas:', err);
+    }
   }
 
   const resultadosFiltrados = null;

@@ -19,6 +19,9 @@
 .dof-header-action { display:flex; align-items:flex-start; flex-shrink:0; margin-top:4px; }
 .dof-postular-btn  { min-width:130px; justify-content:center; }
 .dof-postulado     { display:flex; align-items:center; gap:6px; padding:9px 18px; background:var(--verde-light); border-radius:var(--radius-md); font-size:14px; font-weight:500; color:#0D6E47; }
+.dof-retirar-btn   { display:flex; align-items:center; justify-content:center; gap:6px; padding:7px 14px; background:transparent; border:1px solid var(--rojo); border-radius:var(--radius-md); font-size:13px; font-weight:500; color:var(--rojo); cursor:pointer; transition:all var(--transition); min-width:130px; }
+.dof-retirar-btn:hover:not(:disabled) { background:var(--rojo-light); }
+.dof-retirar-btn:disabled { opacity:0.6; cursor:not-allowed; }
 
 .dof-esp-chips   { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; margin-top:4px; }
 .dof-section     { padding-top:20px; border-top:1px solid var(--gris-borde); }
