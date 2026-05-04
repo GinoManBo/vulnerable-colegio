@@ -89,6 +89,11 @@ export const ofertasAPI = {
     method: 'POST',
     body: JSON.stringify({}),
   }),
+
+  // Eliminar oferta (empresa)
+  eliminar: (ofertaId) => fetchAPI(`/ofertas/${ofertaId}`, {
+    method: 'DELETE',
+  }),
 };
 
 // ─────────────────────────────────────────────
@@ -117,6 +122,13 @@ export const perfilAPI = {
 
   // Obtener mis calificaciones
   misCalificaciones: () => fetchAPI('/perfil/mis-calificaciones'),
+};
+
+// ─────────────────────────────────────────────
+//  BÚSQUEDA
+// ─────────────────────────────────────────────
+export const busquedaAPI = {
+  buscar: (q) => fetchAPI(`/buscar?q=${encodeURIComponent(q)}`),
 };
 
 // ─────────────────────────────────────────────

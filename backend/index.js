@@ -119,7 +119,6 @@ app.post('/api/auth/registro', async (req, res) => {
       usuario: { _id: usuario._id, nombre: usuario.nombre, apellido: usuario.apellido, email: usuario.email, rol: usuario.rol },
     });
   } catch (err) {
-    console.error('Registro:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -153,7 +152,6 @@ app.post('/api/auth/login', async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Login:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -323,23 +321,23 @@ app.get('/api/perfil/mis-postulaciones', auth, soloRoles('estudiante'), async (r
 app.delete('/api/perfil/postulaciones/:postId/retirar', auth, soloRoles('estudiante'), async (req, res) => {
   try {
     const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
-    if (!perfilEstudiante) return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
-    
-    console.log('Retirando postulación:', { postId: req.params.postId, estudianteId: perfilEstudiante._id.toString() });
+    if (!perfilEstudiante) {
+      return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
+    }
     
     const { Types } = await import('mongoose');
     let postIdObj;
     try {
       postIdObj = new Types.ObjectId(req.params.postId);
-    } catch {
+    } catch (e) {
       return res.status(400).json({ error: 'ID de postulación inválido' });
     }
     
     const post = await Postulacion.findOneAndDelete({ _id: postIdObj, estudiante_id: perfilEstudiante._id });
-    if (!post) return res.status(404).json({ error: 'Postulación no encontrada' });
-    console.log('Postulación retirada:', post._id.toString());
+    if (!post) {
+      return res.status(404).json({ error: 'Postulación no encontrada' });
+    }
 
-    // Crear notificación de postulación retirada
     await Notificacion.create({
       usuario_id: req.usuario._id,
       tipo: 'otra',
@@ -350,7 +348,6 @@ app.delete('/api/perfil/postulaciones/:postId/retirar', auth, soloRoles('estudia
 
     res.json({ ok: true, mensaje: 'Postulación retirada' });
   } catch (err) {
-    console.error('Error retirando postulación:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -371,7 +368,7 @@ app.get('/api/perfil/mis-calificaciones', auth, soloRoles('estudiante'), async (
 });
 
 // Helper: notificar a postulantes cuando una oferta se cierra/elimina
-async function notificarCierreOferta(empleoId, tituloOferta) {
+async function notificarCierreOferta(empleoId, tituloOferta, motivoCierre = null, eliminada = false) {
   try {
     const postulaciones = await Postulacion.find({ empleo_id: empleoId });
     if (!postulaciones.length) return;
@@ -380,11 +377,17 @@ async function notificarCierreOferta(empleoId, tituloOferta) {
     const estudianteIds = postulaciones.map(p => p.estudiante_id);
     const perfiles = await PerfilEstudiante.find({ _id: { $in: estudianteIds } }).select('usuario_id');
 
+    const accion = eliminada ? 'eliminada' : 'cerrada';
+    let texto = `La oferta "${tituloOferta}" fue ${accion} por la empresa.`;
+    if (motivoCierre) {
+      texto += ` Motivo: ${motivoCierre}`;
+    }
+
     const notificaciones = perfiles.map(perfil => ({
       usuario_id: perfil.usuario_id,
       tipo: 'otra',
-      titulo: 'Oferta cerrada',
-      texto: `La oferta "${tituloOferta}" fue cerrada o eliminada por la empresa.`,
+      titulo: eliminada ? 'Oferta eliminada' : 'Oferta cerrada',
+      texto,
       link: `/mis-postulaciones`,
     }));
 
@@ -398,7 +401,7 @@ async function notificarCierreOferta(empleoId, tituloOferta) {
       { estado: 'rechazada' }
     );
   } catch (err) {
-    console.error('Error notificando cierre de oferta:', err);
+    // Silenciar error de notificación
   }
 }
 
@@ -449,7 +452,7 @@ app.get('/api/ofertas/mis-ofertas', auth, soloRoles('empresa', 'admin'), async (
 app.patch('/api/ofertas/postulaciones/:postId/estado', auth, soloRoles('empresa', 'admin'), async (req, res) => {
   try {
     const { estado } = req.body;
-    const validos = ['pendiente','en_revision','aceptada','rechazada','contratado'];
+    const validos = ['pendiente','en_revision','aceptada','rechazada','contratado','cerrado_por_fecha'];
     if (!validos.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
 
     const post = await Postulacion.findByIdAndUpdate(req.params.postId, { estado }, { returnDocument: 'after' })
@@ -507,7 +510,7 @@ app.post('/api/ofertas', auth, soloRoles('empresa'), async (req, res) => {
 
 app.put('/api/ofertas/:id', auth, soloRoles('empresa', 'admin'), async (req, res) => {
   try {
-    const campos = ['titulo','descripcion','ubicacion','salario_min','salario_max','modalidad','especialidades_requeridas','activo','cierre_en'];
+    const campos = ['titulo','descripcion','ubicacion','salario_min','salario_max','modalidad','especialidades_requeridas','activo','cierre_en','motivo_cierre'];
     const update = {};
     campos.forEach(c => { if (req.body[c] !== undefined) update[c] = req.body[c]; });
 
@@ -518,7 +521,7 @@ app.put('/api/ofertas/:id', auth, soloRoles('empresa', 'admin'), async (req, res
 
     // Si la oferta se desactivó (cerró), notificar a postulantes
     if (ofertaAnterior.activo === true && oferta.activo === false) {
-      await notificarCierreOferta(oferta._id, oferta.titulo);
+      await notificarCierreOferta(oferta._id, oferta.titulo, oferta.motivo_cierre);
     }
 
     res.json(oferta);
@@ -535,7 +538,7 @@ app.delete('/api/ofertas/:id', auth, soloRoles('empresa', 'admin'), async (req, 
     await PublicacionEmpleo.findByIdAndDelete(req.params.id);
 
     // Notificar a postulantes
-    await notificarCierreOferta(oferta._id, oferta.titulo);
+    await notificarCierreOferta(oferta._id, oferta.titulo, null, true);
 
     res.json({ ok: true, mensaje: 'Oferta eliminada y postulantes notificados' });
   } catch (err) {
@@ -547,6 +550,12 @@ app.post('/api/ofertas/:id/postular', auth, soloRoles('estudiante'), async (req,
   try {
     const oferta = await PublicacionEmpleo.findById(req.params.id);
     if (!oferta || !oferta.activo) return res.status(404).json({ error: 'Oferta no disponible' });
+
+    // Verificar si la oferta ya venció por fecha
+    const ahora = new Date();
+    if (oferta.cierre_en && new Date(oferta.cierre_en) < ahora) {
+      return res.status(404).json({ error: 'Oferta cerrada por fecha límite' });
+    }
 
     // Obtener el perfil del estudiante
     const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
@@ -817,6 +826,75 @@ app.get('/api/admin/todas-ofertas', auth, soloRoles('admin'), async (req, res) =
       .populate('empresa_id', 'nombre_empresa')
       .sort({ publicado_en: -1 });
     res.json(ofertas);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+//  BÚSQUEDA GLOBAL
+// ─────────────────────────────────────────────
+app.get('/api/buscar', auth, async (req, res) => {
+  try {
+    const { q } = req.query;
+    if (!q || q.trim().length < 2) return res.json({ empresas: [], usuarios: [] });
+
+    const termino = q.trim();
+    const regex = new RegExp(termino, 'i');
+
+    // Buscar empresas
+    const empresas = await PerfilEmpresa.find({
+      $or: [
+        { nombre_empresa: regex },
+        { rubro: regex },
+        { ciudad: regex },
+      ]
+    }).select('nombre_empresa rubro ciudad logo_url usuario_id').limit(10);
+
+    // Buscar estudiantes
+    const estudiantes = await PerfilEstudiante.find({
+      $or: [
+        { descripcion: regex },
+        { especialidad: regex },
+        { ciudad: regex },
+      ]
+    }).select('foto_perfil_url especialidad ciudad descripcion usuario_id').limit(10);
+
+    // Obtener datos de usuario para los estudiantes
+    const usuarioIds = estudiantes.map(e => e.usuario_id).filter(Boolean);
+    const usuariosData = await User.find({ _id: { $in: usuarioIds } }).select('nombre apellido email');
+    const usuarioMap = {};
+    usuariosData.forEach(u => { usuarioMap[u._id.toString()] = u; });
+
+    const resultadosUsuarios = estudiantes.map(e => {
+      const u = usuarioMap[e.usuario_id?.toString()];
+      return {
+        id: e.usuario_id,
+        nombre: u ? `${u.nombre} ${u.apellido}` : 'Estudiante',
+        especialidad: e.especialidad || '',
+        ciudad: e.ciudad || '',
+        foto: e.foto_perfil_url,
+      };
+    });
+
+    // Obtener datos de usuario para las empresas
+    const empresaUsuarioIds = empresas.map(e => e.usuario_id).filter(Boolean);
+    const empresaUsuariosData = await User.find({ _id: { $in: empresaUsuarioIds } }).select('nombre apellido email');
+    const empresaUsuarioMap = {};
+    empresaUsuariosData.forEach(u => { empresaUsuarioMap[u._id.toString()] = u; });
+
+    const resultadosEmpresas = empresas.map(e => {
+      const u = empresaUsuarioMap[e.usuario_id?.toString()];
+      return {
+        id: e.usuario_id,
+        nombre: e.nombre_empresa,
+        rubro: e.rubro || '',
+        ciudad: e.ciudad || '',
+        logo: e.logo_url,
+      };
+    });
+
+    res.json({ empresas: resultadosEmpresas, usuarios: resultadosUsuarios });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

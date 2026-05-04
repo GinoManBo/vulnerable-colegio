@@ -71,6 +71,12 @@
 .dof-detalle-label { color:var(--gris-2); }
 .dof-detalle-val   { font-weight:500; color:var(--texto); text-align:right; }
 
+.dof-cierre-aviso { display:flex; align-items:flex-start; gap:12px; padding:16px 18px; background:var(--rojo-light); border-radius:var(--radius-md); margin-bottom:16px; border-left:3px solid var(--rojo); }
+.dof-cierre-icon { color:var(--rojo); flex-shrink:0; margin-top:1px; }
+.dof-cierre-content { flex:1; min-width:0; }
+.dof-cierre-titulo { font-size:14px; font-weight:600; color:var(--rojo); margin:0 0 4px 0; }
+.dof-cierre-motivo { font-size:13px; color:#7F1D1D; margin:0; line-height:1.5; }
+
 .spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 

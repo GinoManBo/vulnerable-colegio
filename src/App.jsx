@@ -31,7 +31,7 @@ export default function App() {
       try {
         setUsuario(JSON.parse(usuarioGuardado));
       } catch (err) {
-        console.error('Error restaurando usuario:', err);
+        // Silenciar error de parseo
       }
     }
     setLoading(false);

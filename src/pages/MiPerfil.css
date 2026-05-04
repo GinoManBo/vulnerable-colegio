@@ -246,3 +246,57 @@
   .miperfil-page { padding: 16px; }
   .miperfil-header-body { flex-direction: column; align-items: flex-start; }
 }
+
+.section-subtitle {
+  color: var(--gris-2);
+  font-size: 13px;
+  margin-top: -12px;
+  margin-bottom: 16px;
+}
+
+.empty-state {
+  color: var(--gris-2);
+  text-align: center;
+  padding: 24px;
+  font-size: 14px;
+}
+
+.btn-ir-a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--azul);
+  background: var(--azul-light);
+  border: none;
+  border-radius: 6px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-ir-a:hover {
+  background: #CCE5FF;
+}
+
+.btn-mostrar-mas {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  margin-top: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--azul);
+  background: transparent;
+  border: 1px dashed var(--azul-light);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-mostrar-mas:hover {
+  background: var(--azul-light);
+  border-color: var(--azul);
+}

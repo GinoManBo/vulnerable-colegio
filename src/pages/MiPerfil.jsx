@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { perfilAPI } from '../api.js';
+import { perfilAPI, ofertasAPI } from '../api.js';
 import './MiPerfil.css';
 
 const DESTREZAS_SUGERIDAS = ['AutoCAD', 'Arduino', 'Python', 'Linux', 'Neumática', 'Hidráulica', 'Mantenimiento preventivo', 'Lectura de planos'];
@@ -17,7 +17,7 @@ function EstrellaFill({ valor }) {
 }
 
 export default function MiPerfil({ usuario }) {
-  // espacio de perfil
+  const esEmpresa = usuario?.rol === 'empresa';
   const [editando, setEditando] = useState(false);
   const [foto, setFoto] = useState(null);
   const [fotoPreview, setFotoPreview] = useState(null);
@@ -33,6 +33,10 @@ export default function MiPerfil({ usuario }) {
     telefono: '',
     email: usuario?.email || '',
     linkedin: '',
+    nombre_empresa: '',
+    rubro: '',
+    sitio_web: '',
+    region: '',
   });
   const [tmp, setTmp] = useState({ ...datos });
 
@@ -43,6 +47,52 @@ export default function MiPerfil({ usuario }) {
   const [curriculum, setCurriculum] = useState(null);
 
   const promedioCalif = 0;
+
+  // Estados para empresa
+  const [ofertasEmpresa, setOfertasEmpresa] = useState([]);
+  const [ofertasActivas, setOfertasActivas] = useState([]);
+  const [postulacionesHistorial, setPostulacionesHistorial] = useState([]);
+  const [cargandoOfertas, setCargandoOfertas] = useState(false);
+  const [mostrarTodas, setMostrarTodas] = useState(false);
+
+  // Cargar ofertas y postulaciones si es empresa
+  useEffect(() => {
+    if (!esEmpresa || !usuario) return;
+    cargarOfertasYPostulaciones();
+  }, [esEmpresa, usuario]);
+
+  function cargarOfertasYPostulaciones() {
+    setCargandoOfertas(true);
+    ofertasAPI.misOfertas()
+      .then(ofertas => {
+        const todas = ofertas || [];
+        setOfertasEmpresa(todas);
+        // Ofertas activas (vigentes)
+        const activas = todas.filter(o => o.activo !== false);
+        setOfertasActivas(activas);
+        // Recopilar postulaciones de ofertas cerradas para el historial
+        const cerradas = todas.filter(o => o.activo === false);
+        const promesas = cerradas.map(oferta =>
+          ofertasAPI.postulantes(oferta._id).catch(() => [])
+        );
+        return Promise.all(promesas);
+      })
+      .then(resultadoPostulaciones => {
+        const todas = (resultadoPostulaciones || []).flat();
+        setPostulacionesHistorial(todas);
+      })
+      .catch(() => {})
+      .finally(() => setCargandoOfertas(false));
+  }
+
+  // Escuchar evento para recargar ofertas (ej. después de cerrar/eliminar)
+  useEffect(() => {
+    function handleRecargar() {
+      cargarOfertasYPostulaciones();
+    }
+    window.addEventListener('actualizar-ofertas-empresa', handleRecargar);
+    return () => window.removeEventListener('actualizar-ofertas-empresa', handleRecargar);
+  }, [esEmpresa, usuario]);
 
   // Cargar datos del perfil desde la API
   useEffect(() => {
@@ -60,19 +110,44 @@ export default function MiPerfil({ usuario }) {
           telefono: perfil.telefono || '',
           email: res.email || usuario.email,
           linkedin: perfil.linkedin || '',
+          nombre_empresa: perfil.nombre_empresa || '',
+          rubro: perfil.rubro || '',
+          sitio_web: perfil.sitio_web || '',
+          region: perfil.region || '',
         };
         setDatos(datosCompletos);
         setTmp(datosCompletos);
         setDestrezas(perfil.destrezas || []);
         setIntereses(perfil.intereses || []);
-        setFotoPreview(perfil.foto_perfil_url || null);
+        setFotoPreview(perfil.foto_perfil_url || perfil.logo_url || null);
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error cargando perfil:', err);
         setLoading(false);
       });
   }, [usuario]);
+
+  // Calcular porcentaje de completitud según el rol
+  const itemsCompletitud = esEmpresa
+    ? [
+        { label: 'Logo de empresa', done: !!fotoPreview },
+        { label: 'Descripción', done: !!datos.descripcion },
+        { label: 'Rubro', done: !!datos.rubro },
+        { label: 'Teléfono', done: !!datos.telefono },
+        { label: 'Ciudad', done: !!datos.ciudad },
+        { label: 'Sitio web', done: !!datos.sitio_web },
+      ]
+    : [
+        { label: 'Foto de perfil', done: !!fotoPreview },
+        { label: 'Descripción', done: !!datos.descripcion },
+        { label: 'Currículum subido', done: !!curriculum },
+        { label: 'Al menos 3 destrezas', done: destrezas.length >= 3 },
+        { label: 'Intereses laborales', done: intereses.length > 0 },
+      ];
+
+  const completitudPct = Math.round(
+    (itemsCompletitud.filter(i => i.done).length / itemsCompletitud.length) * 100
+  );
 
   function handleFoto(e) {
     const file = e.target.files[0];
@@ -90,17 +165,27 @@ export default function MiPerfil({ usuario }) {
     if (!usuario) return;
     setLoading(true);
     
-    const payload = {
-      nombre: tmp.nombre,
-      apellido: tmp.apellido,
-      descripcion: tmp.descripcion,
-      especialidad: tmp.especialidad,
-      ciudad: tmp.ciudad,
-      telefono: tmp.telefono,
-      linkedin: tmp.linkedin,
-      ...(destrezas.length && { destrezas: JSON.stringify(destrezas) }),
-      ...(intereses.length && { intereses: JSON.stringify(intereses) }),
-    };
+    const payload = esEmpresa
+      ? {
+          nombre_empresa: tmp.nombre_empresa,
+          descripcion: tmp.descripcion,
+          rubro: tmp.rubro,
+          ciudad: tmp.ciudad,
+          region: tmp.region,
+          telefono: tmp.telefono,
+          sitio_web: tmp.sitio_web,
+        }
+      : {
+          nombre: tmp.nombre,
+          apellido: tmp.apellido,
+          descripcion: tmp.descripcion,
+          especialidad: tmp.especialidad,
+          ciudad: tmp.ciudad,
+          telefono: tmp.telefono,
+          linkedin: tmp.linkedin,
+          ...(destrezas.length && { destrezas: JSON.stringify(destrezas) }),
+          ...(intereses.length && { intereses: JSON.stringify(intereses) }),
+        };
 
     perfilAPI.actualizar(payload)
       .then(() => {
@@ -109,7 +194,6 @@ export default function MiPerfil({ usuario }) {
         setLoading(false);
       })
       .catch(err => {
-        console.error('Error guardando perfil:', err);
         setLoading(false);
       });
   }
@@ -144,7 +228,7 @@ export default function MiPerfil({ usuario }) {
                 <div className="miperfil-avatar">
                   {fotoPreview
                     ? <img src={fotoPreview} alt="foto perfil" />
-                    : <span>{datos.nombre[0]}{datos.apellido[0]}</span>
+                    : <span>{esEmpresa ? datos.nombre_empresa[0] : `${datos.nombre[0]}${datos.apellido[0]}`}</span>
                   }
                 </div>
                 {editando && (
@@ -158,10 +242,10 @@ export default function MiPerfil({ usuario }) {
               </div>
               <div className="miperfil-header-info">
                 <div className="miperfil-nombre-wrap">
-                  <h1 className="miperfil-nombre">{datos.nombre} {datos.apellido}</h1>
-                  <span className="badge badge-verde">Estudiante</span>
+                  <h1 className="miperfil-nombre">{esEmpresa ? datos.nombre_empresa : `${datos.nombre} ${datos.apellido}`}</h1>
+                  <span className="badge badge-verde">{esEmpresa ? 'Empresa' : 'Estudiante'}</span>
                 </div>
-                <p className="miperfil-especialidad">{datos.especialidad}</p>
+                <p className="miperfil-especialidad">{esEmpresa ? (datos.rubro || datos.nombre_empresa) : datos.especialidad}</p>
                 <div className="miperfil-meta">
                   <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>{datos.ciudad}</span>
                   <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>{datos.email}</span>
@@ -185,63 +269,108 @@ export default function MiPerfil({ usuario }) {
 
           {editando ? (
             <div className="card edit-card">
-              <h2 className="section-title">Información personal</h2>
+              <h2 className="section-title">{esEmpresa ? 'Información de la empresa' : 'Información personal'}</h2>
               <div className="edit-grid">
-                <div className="form-group">
-                  <label>Nombre</label>
-                  <input value={tmp.nombre} onChange={e => setTmp(p => ({ ...p, nombre: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>Apellido</label>
-                  <input value={tmp.apellido} onChange={e => setTmp(p => ({ ...p, apellido: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>Especialidad</label>
-                  <select value={tmp.especialidad} onChange={e => setTmp(p => ({ ...p, especialidad: e.target.value }))}>
-                    <option>Electricidad industrial</option>
-                    <option>Mecatrónica</option>
-                    <option>Redes y comunicaciones</option>
-                    <option>Automatización y PLC</option>
-                    <option>Construcción</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>Ciudad</label>
-                  <input value={tmp.ciudad} onChange={e => setTmp(p => ({ ...p, ciudad: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>Teléfono</label>
-                  <input value={tmp.telefono} onChange={e => setTmp(p => ({ ...p, telefono: e.target.value }))} />
-                </div>
-                <div className="form-group">
-                  <label>LinkedIn</label>
-                  <input value={tmp.linkedin} onChange={e => setTmp(p => ({ ...p, linkedin: e.target.value }))} />
-                </div>
-                <div className="form-group full">
-                  <label>Descripción / sobre mí</label>
-                  <textarea rows={4} value={tmp.descripcion} onChange={e => setTmp(p => ({ ...p, descripcion: e.target.value }))} />
-                </div>
+                {esEmpresa ? (
+                  <>
+                    <div className="form-group">
+                      <label>Nombre de la empresa</label>
+                      <input value={tmp.nombre_empresa} onChange={e => setTmp(p => ({ ...p, nombre_empresa: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>Rubro</label>
+                      <input value={tmp.rubro} onChange={e => setTmp(p => ({ ...p, rubro: e.target.value }))} placeholder="Ej: Construcción, TI, Minería" />
+                    </div>
+                    <div className="form-group">
+                      <label>Ciudad</label>
+                      <input value={tmp.ciudad} onChange={e => setTmp(p => ({ ...p, ciudad: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>Región</label>
+                      <input value={tmp.region} onChange={e => setTmp(p => ({ ...p, region: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>Teléfono</label>
+                      <input value={tmp.telefono} onChange={e => setTmp(p => ({ ...p, telefono: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>Sitio web</label>
+                      <input value={tmp.sitio_web} onChange={e => setTmp(p => ({ ...p, sitio_web: e.target.value }))} placeholder="https://..." />
+                    </div>
+                    <div className="form-group full">
+                      <label>Descripción de la empresa</label>
+                      <textarea rows={4} value={tmp.descripcion} onChange={e => setTmp(p => ({ ...p, descripcion: e.target.value }))} />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="form-group">
+                      <label>Nombre</label>
+                      <input value={tmp.nombre} onChange={e => setTmp(p => ({ ...p, nombre: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>Apellido</label>
+                      <input value={tmp.apellido} onChange={e => setTmp(p => ({ ...p, apellido: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>Especialidad</label>
+                      <select value={tmp.especialidad} onChange={e => setTmp(p => ({ ...p, especialidad: e.target.value }))}>
+                        <option>Electricidad industrial</option>
+                        <option>Mecatrónica</option>
+                        <option>Redes y comunicaciones</option>
+                        <option>Automatización y PLC</option>
+                        <option>Construcción</option>
+                      </select>
+                    </div>
+                    <div className="form-group">
+                      <label>Ciudad</label>
+                      <input value={tmp.ciudad} onChange={e => setTmp(p => ({ ...p, ciudad: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>Teléfono</label>
+                      <input value={tmp.telefono} onChange={e => setTmp(p => ({ ...p, telefono: e.target.value }))} />
+                    </div>
+                    <div className="form-group">
+                      <label>LinkedIn</label>
+                      <input value={tmp.linkedin} onChange={e => setTmp(p => ({ ...p, linkedin: e.target.value }))} />
+                    </div>
+                    <div className="form-group full">
+                      <label>Descripción / sobre mí</label>
+                      <textarea rows={4} value={tmp.descripcion} onChange={e => setTmp(p => ({ ...p, descripcion: e.target.value }))} />
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="curriculum-upload">
-                <label>Currículum (PDF)</label>
-                <div className="cv-drop" onClick={() => document.getElementById('cv-input').click()}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                  <span>{curriculum ? curriculum : 'Haz clic para subir tu CV'}</span>
-                  <span className="cv-hint">PDF, máx. 5 MB</span>
-                  <input id="cv-input" type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleCurriculum} />
+              {!esEmpresa && (
+                <div className="curriculum-upload">
+                  <label>Currículum (PDF)</label>
+                  <div className="cv-drop" onClick={() => document.getElementById('cv-input').click()}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>{curriculum ? curriculum : 'Haz clic para subir tu CV'}</span>
+                    <span className="cv-hint">PDF, máx. 5 MB</span>
+                    <input id="cv-input" type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleCurriculum} />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             <div className="card edit-card">
-              <h2 className="section-title">Sobre mí</h2>
-              <p className="sobre-mi-txt">{datos.descripcion}</p>
-              <div className="contacto-grid">
-                <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>{datos.telefono}</span></div>
-                <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>{datos.email}</span></div>
-                <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg><span>{datos.linkedin}</span></div>
-              </div>
-              {curriculum && (
+              <h2 className="section-title">{esEmpresa ? 'Sobre la empresa' : 'Sobre mí'}</h2>
+              <p className="sobre-mi-txt">{datos.descripcion || (esEmpresa ? 'Sin descripción' : 'Sin descripción')}</p>
+              {esEmpresa ? (
+                <div className="contacto-grid">
+                  {datos.telefono && <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.5 19.5 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>{datos.telefono}</span></div>}
+                  {datos.email && <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>{datos.email}</span></div>}
+                  {datos.sitio_web && <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span>{datos.sitio_web}</span></div>}
+                </div>
+              ) : (
+                <div className="contacto-grid">
+                  <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.5 19.5 0 0 1-3.07-8.67A2 2 0 0 1 3.56 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 8.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg><span>{datos.telefono}</span></div>
+                  <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span>{datos.email}</span></div>
+                  <div className="contacto-item"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg><span>{datos.linkedin}</span></div>
+                </div>
+              )}
+              {!esEmpresa && curriculum && (
                 <div className="cv-chip">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   {curriculum}
@@ -250,6 +379,7 @@ export default function MiPerfil({ usuario }) {
             </div>
           )}
 
+          {!esEmpresa && (
           <div className="card edit-card">
             <h2 className="section-title">Destrezas técnicas</h2>
             <div className="tags-wrap">
@@ -293,7 +423,9 @@ export default function MiPerfil({ usuario }) {
               </div>
             )}
           </div>
+          )}
 
+          {!esEmpresa && (
           <div className="card edit-card">
             <div className="historial-header">
               <h2 className="section-title">Historial de trabajos</h2>
@@ -317,6 +449,75 @@ export default function MiPerfil({ usuario }) {
               ))}
             </div>
           </div>
+          )}
+
+          {esEmpresa && (
+          <>
+          <div className="card edit-card">
+            <h2 className="section-title">Convocatorias vigentes</h2>
+            <p className="section-subtitle">Ofertas activas disponibles para postulación</p>
+            {cargandoOfertas ? (
+              <p className="empty-state">Cargando...</p>
+            ) : ofertasActivas.length === 0 ? (
+              <p className="empty-state">No hay ofertas activas actualmente</p>
+            ) : (
+              <>
+                <div className="historial-lista">
+                  {(mostrarTodas ? ofertasActivas : ofertasActivas.slice(0, 3)).map(o => (
+                    <div key={o._id} className="historial-item">
+                      <div className="historial-item-top">
+                        <div>
+                          <p className="historial-titulo">{o.titulo}</p>
+                          <p className="historial-empresa">{o.ubicacion} · {o.modalidad} · Publicada el {new Date(o.publicado_en || o.creado_en).toLocaleDateString('es-CL')}</p>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                          <span className="badge badge-verde">Activa</span>
+                          <Link to={`/oferta/${o._id}`} className="btn-ir-a">Ir a</Link>
+                        </div>
+                      </div>
+                      <p className="historial-comentario">{o.descripcion?.substring(0, 150)}{o.descripcion?.length > 150 ? '...' : ''}</p>
+                    </div>
+                  ))}
+                </div>
+                {ofertasActivas.length > 3 && (
+                  <button className="btn-mostrar-mas" onClick={() => setMostrarTodas(prev => !prev)}>
+                    {mostrarTodas ? 'Mostrar menos' : `Mostrar más (${ofertasActivas.length - 3} adicionales)`}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="card edit-card">
+            <h2 className="section-title">Historial de postulaciones</h2>
+            <p className="section-subtitle">Postulaciones registradas en ofertas cerradas</p>
+            {cargandoOfertas ? (
+              <p className="empty-state">Cargando...</p>
+            ) : postulacionesHistorial.length === 0 ? (
+              <p className="empty-state">No hay postulaciones en el historial</p>
+            ) : (
+              <div className="historial-lista">
+                {postulacionesHistorial.map(p => {
+                  const estudiante = p.estudiante_id?.usuario_id || {};
+                  const estadoLabel = p.estado === 'aceptada' ? 'Aceptada' : p.estado === 'rechazada' ? 'Rechazada' : p.estado === 'contratado' ? 'Contratado' : 'Cerrada';
+                  const estadoClass = p.estado === 'aceptada' ? 'badge-verde' : p.estado === 'rechazada' ? 'badge-rojo' : p.estado === 'contratado' ? 'badge-azul' : 'badge-gris';
+                  return (
+                    <div key={p._id} className="historial-item">
+                      <div className="historial-item-top">
+                        <div>
+                          <p className="historial-titulo">{estudiante.nombre} {estudiante.apellido}</p>
+                          <p className="historial-empresa">{p.empleo_id?.titulo || 'Oferta'} · {new Date(p.postulado_en || p.creado_en).toLocaleDateString('es-CL')}</p>
+                        </div>
+                        <span className={`badge ${estadoClass}`}>{estadoLabel}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          </>
+          )}
 
         </div>
 
@@ -324,36 +525,49 @@ export default function MiPerfil({ usuario }) {
           <div className="card aside-card">
             <h3 className="aside-title">Resumen</h3>
             <div className="aside-stat-list">
-              <div className="aside-stat">
-                <span className="aside-stat-n">0</span>
-                <span className="aside-stat-l">Trabajos completados</span>
-              </div>
-              <div className="aside-stat">
-                <span className="aside-stat-n" style={{ color: 'var(--verde)' }}>{promedioCalif.toFixed(1)}</span>
-                <span className="aside-stat-l">Calificación promedio</span>
-              </div>
-              <div className="aside-stat">
-                <span className="aside-stat-n">{destrezas.length}</span>
-                <span className="aside-stat-l">Destrezas registradas</span>
-              </div>
+              {esEmpresa ? (
+                <>
+                  <div className="aside-stat">
+                    <span className="aside-stat-n">{ofertasEmpresa.length}</span>
+                    <span className="aside-stat-l">Ofertas publicadas</span>
+                  </div>
+                  <div className="aside-stat">
+                    <span className="aside-stat-n" style={{ color: 'var(--verde)' }}>{ofertasActivas.length}</span>
+                    <span className="aside-stat-l">Convocatorias vigentes</span>
+                  </div>
+                  <div className="aside-stat">
+                    <span className="aside-stat-n">{postulacionesHistorial.length}</span>
+                    <span className="aside-stat-l">Historial de postulaciones</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="aside-stat">
+                    <span className="aside-stat-n">0</span>
+                    <span className="aside-stat-l">Trabajos completados</span>
+                  </div>
+                  <div className="aside-stat">
+                    <span className="aside-stat-n" style={{ color: 'var(--verde)' }}>{promedioCalif.toFixed(1)}</span>
+                    <span className="aside-stat-l">Calificación promedio</span>
+                  </div>
+                  <div className="aside-stat">
+                    <span className="aside-stat-n">{destrezas.length}</span>
+                    <span className="aside-stat-l">Destrezas registradas</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
           <div className="card aside-card">
             <h3 className="aside-title">Completitud del perfil</h3>
             <div className="completitud-wrap">
               <div className="completitud-bar-bg">
-                <div className="completitud-bar-fill" style={{ width: '78%' }} />
+                <div className="completitud-bar-fill" style={{ width: `${completitudPct}%` }} />
               </div>
-              <span className="completitud-pct">78%</span>
+              <span className="completitud-pct">{completitudPct}%</span>
             </div>
             <ul className="completitud-items">
-              {[
-                { label: 'Foto de perfil', done: !!fotoPreview },
-                { label: 'Descripción', done: !!datos.descripcion },
-                { label: 'Currículum subido', done: !!curriculum },
-                { label: 'Al menos 3 destrezas', done: destrezas.length >= 3 },
-                { label: 'Intereses laborales', done: intereses.length > 0 },
-              ].map(i => (
+              {itemsCompletitud.map(i => (
                 <li key={i.label} className={`compl-item ${i.done ? 'done' : ''}`}>
                   {i.done
                     ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--verde)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>

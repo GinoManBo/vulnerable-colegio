@@ -77,6 +77,7 @@ const publicacionEmpleoSchema = new Schema(
     especialidades_requeridas: [{ type: String }],        
     activo: { type: Boolean, default: true },
     cierre_en: { type: Date, default: null },
+    motivo_cierre: { type: String, maxlength: 500 },
   },
   { timestamps: { createdAt: "publicado_en", updatedAt: "actualizado_en" } }
 );
@@ -92,7 +93,7 @@ const postulacionSchema = new Schema(
     estudiante_id: { type: Types.ObjectId, ref: "PerfilEstudiante", required: true },
     estado: {
       type: String,
-      enum: ["pendiente", "en_revision", "aceptada", "rechazada", "contratado"],
+      enum: ["pendiente", "en_revision", "aceptada", "rechazada", "contratado", "cerrado_por_fecha"],
       default: "pendiente",
     },
     carta_presentacion: { type: String, maxlength: 1000 },

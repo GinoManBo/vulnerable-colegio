@@ -40,7 +40,6 @@ export default function HomePage() {
         );
         setMisPostulacionesIds(postuladosIds);
       } catch (err) {
-        console.error('Error cargando datos:', err);
         setOfertas([]);
       } finally {
         setCargando(false);
@@ -60,7 +59,6 @@ export default function HomePage() {
         );
         setMisPostulacionesIds(postuladosIds);
       } catch (err) {
-        console.error('Error recargando postulaciones:', err);
       }
     }
     window.addEventListener('actualizar-postulaciones', handleActualizar);

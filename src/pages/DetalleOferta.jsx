@@ -49,7 +49,6 @@ export default function DetalleOferta({ usuario }) {
         });
         if (yaPostulado) {
           const postId = typeof yaPostulado._id === 'string' ? yaPostulado._id : yaPostulado._id?.toString();
-          console.log('Postulación encontrada:', { id: postId, empleo: yaPostulado.empleo_id?._id?.toString() });
           setPostulado(true);
           setPostulacionId(postId);
         } else {
@@ -100,25 +99,21 @@ export default function DetalleOferta({ usuario }) {
   }
 
   async function retirarPostulacion() {
-    console.log('Intentando retirar - postulacionId:', postulacionId, 'tipo:', typeof postulacionId);
     if (!postulacionId) {
       setError('No se encontró la postulación para retirar');
       return;
     }
-    if (!confirm('¿Estás seguro de que deseas retirar tu postulación?')) return;
+    // if (!confirm('¿Estás seguro de que deseas retirar tu postulación?')) return; // TEMP: desactivado para debug
     setRetirando(true);
     setError('');
     try {
       const postId = String(postulacionId);
-      console.log('Enviando a API postId:', postId);
-      const resultado = await perfilAPI.retirarPostulacion(postId);
-      console.log('Resultado API:', resultado);
+      await perfilAPI.retirarPostulacion(postId);
       setPostulado(false);
       setPostulacionId(null);
       window.dispatchEvent(new Event('actualizar-postulaciones'));
       window.dispatchEvent(new Event('recargar-notificaciones'));
     } catch(err) {
-      console.error('Error retirando:', err);
       setError(err.message || 'No se pudo retirar la postulación');
     } finally { setRetirando(false); }
   }
@@ -216,6 +211,18 @@ export default function DetalleOferta({ usuario }) {
             <div className="dof-esp-chips">
               {oferta.especialidades_requeridas?.map(e=><span key={e} className="badge badge-azul">{e}</span>)}
             </div>
+
+            {!oferta.activo && oferta.motivo_cierre && (
+              <div className="dof-cierre-aviso">
+                <div className="dof-cierre-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                </div>
+                <div className="dof-cierre-content">
+                  <h3 className="dof-cierre-titulo">Oferta cerrada</h3>
+                  <p className="dof-cierre-motivo">{oferta.motivo_cierre}</p>
+                </div>
+              </div>
+            )}
 
             <div className="dof-section">
               <h2 className="dof-section-titulo">Descripción del cargo</h2>

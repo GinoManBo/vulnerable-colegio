@@ -199,7 +199,6 @@ export default function JobCard({
         onPostuladoExito();
       }
     } catch (err) {
-      console.error('Error postulando:', err);
 
       // Si el error es "Ya postulaste", marcamos como postulado
       if (err.message?.includes('Ya postulaste')) {

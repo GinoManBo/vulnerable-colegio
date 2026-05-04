@@ -184,6 +184,9 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
+  pointer-events: auto;
+  z-index: 1;
+  position: relative;
 }
 
 .btn-retirar:hover {

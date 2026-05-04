@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { notificacionesAPI } from '../api';
+import { notificacionesAPI, busquedaAPI } from '../api';
 import './navbar.css';
 
 function IcoHome()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>; }
@@ -31,12 +31,42 @@ export default function NavBar({ usuario, onLogout }) {
   const [showNotifs, setShowNotifs] = useState(false);
   const [showPerfil, setShowPerfil] = useState(false);
   const [notifs, setNotifs] = useState([]);
+  const [resultados, setResultados] = useState({ empresas: [], usuarios: [] });
+  const [buscando, setBuscando] = useState(false);
   const searchRef = useRef(null);
   const notifsRef = useRef(null);
   const perfilRef = useRef(null);
   const location = useLocation();
+  const busquedaTimeout = useRef(null);
 
   const noLeidas = notifs.filter(n => !n.leida).length;
+
+  // Función de búsqueda con debounce
+  function ejecutarBusqueda(termino) {
+    if (busquedaTimeout.current) clearTimeout(busquedaTimeout.current);
+    if (!termino || termino.length < 2) {
+      setResultados({ empresas: [], usuarios: [] });
+      return;
+    }
+    setBuscando(true);
+    busquedaTimeout.current = setTimeout(() => {
+      busquedaAPI.buscar(termino)
+        .then(data => {
+          setResultados({ empresas: data.empresas || [], usuarios: data.usuarios || [] });
+        })
+        .catch(() => {
+          setResultados({ empresas: [], usuarios: [] });
+        })
+        .finally(() => setBuscando(false));
+    }, 300);
+  }
+
+  function handleBusquedaChange(e) {
+    const valor = e.target.value;
+    setBusqueda(valor);
+    setShowSearch(true);
+    ejecutarBusqueda(valor);
+  }
 
   // Cargar notificaciones desde el backend
   async function cargarNotificaciones() {
@@ -53,7 +83,7 @@ export default function NavBar({ usuario, onLogout }) {
       }));
       setNotifs(notifsFormateadas);
     } catch (err) {
-      console.error('Error cargando notificaciones:', err);
+      // Silenciar error de notificaciones
     }
   }
 
@@ -85,13 +115,11 @@ export default function NavBar({ usuario, onLogout }) {
       await notificacionesAPI.marcarTodasLeidas();
       setNotifs(prev => prev.map(n => ({ ...n, leida: true })));
     } catch (err) {
-      console.error('Error marcando notificaciones como leídas:', err);
+      // Silenciar error al marcar leídas
     }
   }
 
-  const resultadosFiltrados = null;
-
-  const hayResultados = resultadosFiltrados && (resultadosFiltrados.empresas.length > 0 || resultadosFiltrados.usuarios.length > 0);
+  const hayResultados = resultados.empresas.length > 0 || resultados.usuarios.length > 0;
 
   return (
     <nav className="navbar">
@@ -114,43 +142,46 @@ export default function NavBar({ usuario, onLogout }) {
               type="text"
               placeholder="Buscar empresas o estudiantes..."
               value={busqueda}
-              onChange={e => { setBusqueda(e.target.value); setShowSearch(true); }}
+              onChange={handleBusquedaChange}
               onFocus={() => setShowSearch(true)}
             />
             {busqueda && (
-              <button className="search-clear" onClick={() => { setBusqueda(''); setShowSearch(false); }}>
+              <button className="search-clear" onClick={() => { setBusqueda(''); setShowSearch(false); setResultados({ empresas: [], usuarios: [] }); }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             )}
           </div>
           {showSearch && busqueda.length > 1 && (
             <div className="search-dropdown">
-              {!hayResultados && (
+              {buscando && (
+                <p className="search-empty">Buscando...</p>
+              )}
+              {!buscando && !hayResultados && (
                 <p className="search-empty">Sin resultados para "{busqueda}"</p>
               )}
-              {resultadosFiltrados?.empresas.length > 0 && (
+              {!buscando && resultados.empresas.length > 0 && (
                 <div className="search-section">
                   <p className="search-section-label">Empresas</p>
-                  {resultadosFiltrados.empresas.map(e => (
-                    <Link key={e.id} to={`/empresa/${e.id}`} className="search-item" onClick={() => setShowSearch(false)}>
+                  {resultados.empresas.map(e => (
+                    <Link key={e.id} to={`/perfil/${e.id}`} className="search-item" onClick={() => { setShowSearch(false); setBusqueda(''); }}>
                       <div className="search-item-avatar empresa">{e.nombre[0]}</div>
                       <div>
                         <p className="search-item-nombre">{e.nombre}</p>
-                        <p className="search-item-sub">{e.rubro}</p>
+                        <p className="search-item-sub">{e.rubro || e.ciudad}</p>
                       </div>
                     </Link>
                   ))}
                 </div>
               )}
-              {resultadosFiltrados?.usuarios.length > 0 && (
+              {!buscando && resultados.usuarios.length > 0 && (
                 <div className="search-section">
                   <p className="search-section-label">Estudiantes</p>
-                  {resultadosFiltrados.usuarios.map(u => (
-                    <Link key={u.id} to={`/perfil/${u.id}`} className="search-item" onClick={() => setShowSearch(false)}>
+                  {resultados.usuarios.map(u => (
+                    <Link key={u.id} to={`/perfil/${u.id}`} className="search-item" onClick={() => { setShowSearch(false); setBusqueda(''); }}>
                       <div className="search-item-avatar estudiante">{u.nombre[0]}</div>
                       <div>
                         <p className="search-item-nombre">{u.nombre}</p>
-                        <p className="search-item-sub">{u.especialidad}</p>
+                        <p className="search-item-sub">{u.especialidad || u.ciudad}</p>
                       </div>
                     </Link>
                   ))}

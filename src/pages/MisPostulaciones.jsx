@@ -58,7 +58,6 @@ export default function MisPostulaciones({ usuario }) {
         const datos = await perfilAPI.misPostulaciones();
         setPostulaciones(datos || []);
       } catch (err) {
-        console.error('Error cargando postulaciones:', err);
         setPostulaciones([]);
       } finally {
         setCargando(false);
@@ -73,20 +72,14 @@ export default function MisPostulaciones({ usuario }) {
   });
 
   async function retirarPostulacion(postId) {
-    if (!confirm('¿Estás seguro de que deseas retirar esta postulación?')) return;
     setRetirandoId(postId);
     try {
-      const postIdStr = String(postId);
-      console.log('MisPostulaciones - retirando postId:', postIdStr);
-      const resultado = await perfilAPI.retirarPostulacion(postIdStr);
-      console.log('MisPostulaciones - resultado:', resultado);
-      setPostulaciones(prev => prev.filter(p => p._id !== postId));
-      // Disparar evento para actualizar botones de JobCards en HomePage
+      await perfilAPI.retirarPostulacion(postId);
+      setPostulaciones(prev => prev.filter(p => String(p._id) !== String(postId)));
       window.dispatchEvent(new Event('actualizar-postulaciones'));
       window.dispatchEvent(new Event('recargar-notificaciones'));
       alert('Postulación retirada exitosamente');
     } catch (err) {
-      console.error('MisPostulaciones - error:', err);
       alert(err.message || 'No se pudo retirar la postulación');
     } finally {
       setRetirandoId(null);
@@ -215,12 +208,15 @@ export default function MisPostulaciones({ usuario }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <button
                       className="btn-retirar"
-                      onClick={() => retirarPostulacion(post._id)}
-                      disabled={retirandoId === post._id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        retirarPostulacion(String(post._id));
+                      }}
+                      disabled={retirandoId === String(post._id)}
                       title="Retirar postulación"
                     >
                       <IcoTrash />
-                      {retirandoId === post._id ? 'Retirando...' : 'Retirar'}
+                      {retirandoId === String(post._id) ? 'Retirando...' : 'Retirar'}
                     </button>
                     <div className={`estado-badge ${estadoInfo.clase}`}>
                       <IconoEstado />

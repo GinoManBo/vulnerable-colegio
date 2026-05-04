@@ -59,7 +59,7 @@ export default function PerfilPublico() {
               )}
             </div>
             <div className="perfil-publico-info">
-              <h1>{usuario.nombre} {usuario.apellido}</h1>
+              <h1>{usuario.rol === 'empresa' ? (perfil.nombre_empresa || `${usuario.nombre} ${usuario.apellido}`) : `${usuario.nombre} ${usuario.apellido}`}</h1>
               <p className="perfil-publico-rol">
                 <span className={`badge ${usuario.rol === 'empresa' ? 'badge-azul' : 'badge-verde'}`}>
                   {usuario.rol === 'empresa' ? 'Empresa' : 'Estudiante'}

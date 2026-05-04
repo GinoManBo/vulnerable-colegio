@@ -7,11 +7,12 @@ import './VistaEmpresa.css';
 const ESPECIALIDADES = ['Electricidad industrial','Mecatrónica','Redes y comunicaciones','Automatización y PLC','Construcción','Otro'];
 
 const ESTADO_CFG = {
-  pendiente:   { label:'Pendiente',   cls:'badge-gris'    },
-  en_revision: { label:'En revisión', cls:'badge-naranja' },
-  aceptada:    { label:'Aceptado',    cls:'badge-verde'   },
-  rechazada:   { label:'Rechazado',   cls:'badge-rojo'    },
-  contratado:  { label:'Contratado',  cls:'badge-verde'   },
+  pendiente:        { label:'Pendiente',        cls:'badge-gris'    },
+  en_revision:      { label:'En revisión',      cls:'badge-naranja' },
+  aceptada:         { label:'Aceptado',         cls:'badge-verde'   },
+  rechazada:        { label:'Rechazado',        cls:'badge-rojo'    },
+  contratado:       { label:'Contratado',       cls:'badge-azul'    },
+  cerrado_por_fecha:{ label:'Cerrado por fecha',cls:'badge-gris'    },
 };
 
 function IcoPlus()  { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>; }
@@ -19,6 +20,7 @@ function IcoEdit()  { return <svg width="14" height="14" viewBox="0 0 24 24" fil
 function IcoOff()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>; }
 function IcoOn()    { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>; }
 function IcoUsers() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
+function IcoTrash() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>; }
 
 const FORM_INIT = { titulo:'', descripcion:'', ubicacion:'', salario_min:'', salario_max:'', modalidad:'presencial', especialidades:[], cierre_en:'' };
 
@@ -174,8 +176,36 @@ export default function VistaEmpresa({ usuario }) {
   }
 
   async function toggleActivo(id, actual) {
-    await ofertasAPI.editar(id, { activo: !actual });
-    setOfertas(p => p.map(o => o._id===id ? {...o, activo:!actual} : o));
+    if (actual) {
+      const motivo = prompt('Ingresa el motivo de cierre de la oferta:');
+      if (motivo === null) return;
+      try {
+        const resultado = await ofertasAPI.editar(id, { activo: false, motivo_cierre: motivo.trim() || 'Sin motivo especificado' });
+        setOfertas(p => p.map(o => o._id===id ? {...o, activo:false, motivo_cierre: motivo.trim() || 'Sin motivo especificado'} : o));
+        window.dispatchEvent(new Event('actualizar-ofertas-empresa'));
+      } catch (err) {
+        alert('Error al cerrar la oferta: ' + (err.message || 'Error desconocido'));
+      }
+    } else {
+      try {
+        await ofertasAPI.editar(id, { activo: true });
+        setOfertas(p => p.map(o => o._id===id ? {...o, activo:true, motivo_cierre: null} : o));
+        window.dispatchEvent(new Event('actualizar-ofertas-empresa'));
+      } catch (err) {
+        alert('Error al reactivar la oferta: ' + (err.message || 'Error desconocido'));
+      }
+    }
+  }
+
+  async function eliminarOferta(id) {
+    if (!confirm('¿Estás seguro de que deseas eliminar esta oferta? Esta acción no se puede deshacer.')) return;
+    try {
+      await ofertasAPI.eliminar(id);
+      setOfertas(p => p.filter(o => o._id !== id));
+      window.dispatchEvent(new Event('actualizar-ofertas-empresa'));
+    } catch (err) {
+      alert('Error al eliminar la oferta: ' + (err.message || 'Error desconocido'));
+    }
   }
 
   async function cambiarEstadoPost(postId, estado) {
@@ -267,6 +297,7 @@ export default function VistaEmpresa({ usuario }) {
                       <button className="emp-btn" title="Ver postulantes" onClick={()=>setModalPostulantes({id: o._id, titulo: o.titulo})}><IcoUsers/></button>
                       <button className="emp-btn" title="Editar" onClick={()=>setEditando(o)}><IcoEdit/></button>
                       <button className={`emp-btn ${o.activo?'danger':''}`} title={o.activo?'Cerrar oferta':'Reactivar'} onClick={()=>toggleActivo(o._id,o.activo)}>{o.activo?<IcoOff/>:<IcoOn/>}</button>
+                      <button className="emp-btn danger" title="Eliminar oferta" onClick={()=>eliminarOferta(o._id)}><IcoTrash/></button>
                       <Link to={`/oferta/${o._id}`} className="emp-btn" title="Ver pública">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                       </Link>
