@@ -112,6 +112,9 @@ export const perfilAPI = {
   // Obtener perfil de un usuario
   obtener: (usuarioId) => fetchAPI(`/perfil/usuario/${usuarioId}`),
 
+  // Obtener ofertas activas de una empresa
+  ofertasEmpresa: (usuarioId) => fetchAPI(`/perfil/usuario/${usuarioId}/ofertas`),
+
   // Obtener mis postulaciones
   misPostulaciones: () => fetchAPI('/perfil/mis-postulaciones'),
 

@@ -51,48 +51,36 @@ export default function MiPerfil({ usuario }) {
   // Estados para empresa
   const [ofertasEmpresa, setOfertasEmpresa] = useState([]);
   const [ofertasActivas, setOfertasActivas] = useState([]);
-  const [postulacionesHistorial, setPostulacionesHistorial] = useState([]);
   const [cargandoOfertas, setCargandoOfertas] = useState(false);
   const [mostrarTodas, setMostrarTodas] = useState(false);
 
-  // Cargar ofertas y postulaciones si es empresa
+  // Cargar ofertas si es empresa
   useEffect(() => {
     if (!esEmpresa || !usuario) return;
-    cargarOfertasYPostulaciones();
+    cargarOfertasEmpresa();
   }, [esEmpresa, usuario]);
 
-  function cargarOfertasYPostulaciones() {
+  function cargarOfertasEmpresa() {
     setCargandoOfertas(true);
     ofertasAPI.misOfertas()
       .then(ofertas => {
         const todas = ofertas || [];
         setOfertasEmpresa(todas);
-        // Ofertas activas (vigentes)
         const activas = todas.filter(o => o.activo !== false);
         setOfertasActivas(activas);
-        // Recopilar postulaciones de ofertas cerradas para el historial
-        const cerradas = todas.filter(o => o.activo === false);
-        const promesas = cerradas.map(oferta =>
-          ofertasAPI.postulantes(oferta._id).catch(() => [])
-        );
-        return Promise.all(promesas);
-      })
-      .then(resultadoPostulaciones => {
-        const todas = (resultadoPostulaciones || []).flat();
-        setPostulacionesHistorial(todas);
       })
       .catch(() => {})
       .finally(() => setCargandoOfertas(false));
   }
 
-  // Escuchar evento para recargar ofertas (ej. después de cerrar/eliminar)
+  // Escuchar evento para recargar ofertas
   useEffect(() => {
     function handleRecargar() {
-      cargarOfertasYPostulaciones();
+      cargarOfertasEmpresa();
     }
     window.addEventListener('actualizar-ofertas-empresa', handleRecargar);
     return () => window.removeEventListener('actualizar-ofertas-empresa', handleRecargar);
-  }, [esEmpresa, usuario]);
+  });
 
   // Cargar datos del perfil desde la API
   useEffect(() => {
@@ -487,35 +475,6 @@ export default function MiPerfil({ usuario }) {
               </>
             )}
           </div>
-
-          <div className="card edit-card">
-            <h2 className="section-title">Historial de postulaciones</h2>
-            <p className="section-subtitle">Postulaciones registradas en ofertas cerradas</p>
-            {cargandoOfertas ? (
-              <p className="empty-state">Cargando...</p>
-            ) : postulacionesHistorial.length === 0 ? (
-              <p className="empty-state">No hay postulaciones en el historial</p>
-            ) : (
-              <div className="historial-lista">
-                {postulacionesHistorial.map(p => {
-                  const estudiante = p.estudiante_id?.usuario_id || {};
-                  const estadoLabel = p.estado === 'aceptada' ? 'Aceptada' : p.estado === 'rechazada' ? 'Rechazada' : p.estado === 'contratado' ? 'Contratado' : 'Cerrada';
-                  const estadoClass = p.estado === 'aceptada' ? 'badge-verde' : p.estado === 'rechazada' ? 'badge-rojo' : p.estado === 'contratado' ? 'badge-azul' : 'badge-gris';
-                  return (
-                    <div key={p._id} className="historial-item">
-                      <div className="historial-item-top">
-                        <div>
-                          <p className="historial-titulo">{estudiante.nombre} {estudiante.apellido}</p>
-                          <p className="historial-empresa">{p.empleo_id?.titulo || 'Oferta'} · {new Date(p.postulado_en || p.creado_en).toLocaleDateString('es-CL')}</p>
-                        </div>
-                        <span className={`badge ${estadoClass}`}>{estadoLabel}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
           </>
           )}
 
@@ -534,10 +493,6 @@ export default function MiPerfil({ usuario }) {
                   <div className="aside-stat">
                     <span className="aside-stat-n" style={{ color: 'var(--verde)' }}>{ofertasActivas.length}</span>
                     <span className="aside-stat-l">Convocatorias vigentes</span>
-                  </div>
-                  <div className="aside-stat">
-                    <span className="aside-stat-n">{postulacionesHistorial.length}</span>
-                    <span className="aside-stat-l">Historial de postulaciones</span>
                   </div>
                 </>
               ) : (

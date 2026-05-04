@@ -300,6 +300,24 @@ app.get('/api/perfil/usuario/:usuarioId', auth, async (req, res) => {
   }
 });
 
+// Obtener ofertas activas de una empresa por usuario_id
+app.get('/api/perfil/usuario/:usuarioId/ofertas', auth, async (req, res) => {
+  try {
+    const usuario = await User.findById(req.params.usuarioId).select('rol');
+    if (!usuario || usuario.rol !== 'empresa') return res.json([]);
+
+    const perfil = await PerfilEmpresa.findOne({ usuario_id: usuario._id });
+    if (!perfil) return res.json([]);
+
+    const ofertas = await PublicacionEmpleo.find({ empresa_id: perfil._id, activo: true })
+      .sort({ publicado_en: -1 });
+
+    res.json(ofertas);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/perfil/mis-postulaciones', auth, soloRoles('estudiante'), async (req, res) => {
   try {
     const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
@@ -371,6 +389,7 @@ app.get('/api/perfil/mis-calificaciones', auth, soloRoles('estudiante'), async (
 async function notificarCierreOferta(empleoId, tituloOferta, motivoCierre = null, eliminada = false) {
   try {
     const postulaciones = await Postulacion.find({ empleo_id: empleoId });
+    console.log('notificarCierreOferta: empleoId=', empleoId, 'postulaciones encontradas=', postulaciones.length);
     if (!postulaciones.length) return;
 
     // Obtener perfiles de estudiantes para tener sus usuario_id
@@ -521,6 +540,7 @@ app.put('/api/ofertas/:id', auth, soloRoles('empresa', 'admin'), async (req, res
 
     // Si la oferta se desactivó (cerró), notificar a postulantes
     if (ofertaAnterior.activo === true && oferta.activo === false) {
+      console.log('Oferta cerrada, notificando postulantes:', oferta.titulo, oferta._id);
       await notificarCierreOferta(oferta._id, oferta.titulo, oferta.motivo_cierre);
     }
 

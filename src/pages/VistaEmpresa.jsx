@@ -119,6 +119,8 @@ export default function VistaEmpresa({ usuario }) {
   const [stats,            setStats]            = useState({ activas:0, totalPost:0, aceptados:0, total:0 });
   const [error,            setError]            = useState('');
   const [modalPostulantes, setModalPostulantes] = useState(null);
+  const [modalCierre,      setModalCierre]      = useState(null);
+  const [motivoCierre,     setMotivoCierre]     = useState('');
 
   useEffect(() => {
     setCargando(true);
@@ -175,24 +177,37 @@ export default function VistaEmpresa({ usuario }) {
     setEditando(null);
   }
 
+  function abrirModalCierre(id) {
+    setModalCierre(id);
+    setMotivoCierre('');
+  }
+
+  async function ejecutarCierre() {
+    const id = modalCierre;
+    if (!id) return;
+    const motivoFinal = motivoCierre.trim() || 'Sin motivo especificado';
+    try {
+      await ofertasAPI.editar(id, { activo: false, motivo_cierre: motivoFinal });
+      setOfertas(p => p.map(o => o._id===id ? {...o, activo:false, motivo_cierre: motivoFinal} : o));
+      console.log('Oferta cerrada, dispatching actualizar-ofertas-empresa');
+      window.dispatchEvent(new Event('actualizar-ofertas-empresa'));
+      setModalCierre(null);
+      setMotivoCierre('');
+    } catch (err) {
+      alert('Error al cerrar: ' + (err.message || 'Error desconocido'));
+    }
+  }
+
   async function toggleActivo(id, actual) {
     if (actual) {
-      const motivo = prompt('Ingresa el motivo de cierre de la oferta:');
-      if (motivo === null) return;
-      try {
-        const resultado = await ofertasAPI.editar(id, { activo: false, motivo_cierre: motivo.trim() || 'Sin motivo especificado' });
-        setOfertas(p => p.map(o => o._id===id ? {...o, activo:false, motivo_cierre: motivo.trim() || 'Sin motivo especificado'} : o));
-        window.dispatchEvent(new Event('actualizar-ofertas-empresa'));
-      } catch (err) {
-        alert('Error al cerrar la oferta: ' + (err.message || 'Error desconocido'));
-      }
+      abrirModalCierre(id);
     } else {
       try {
         await ofertasAPI.editar(id, { activo: true });
         setOfertas(p => p.map(o => o._id===id ? {...o, activo:true, motivo_cierre: null} : o));
         window.dispatchEvent(new Event('actualizar-ofertas-empresa'));
       } catch (err) {
-        alert('Error al reactivar la oferta: ' + (err.message || 'Error desconocido'));
+        alert('Error al reactivar: ' + (err.message || 'Error desconocido'));
       }
     }
   }
@@ -296,7 +311,7 @@ export default function VistaEmpresa({ usuario }) {
                     <div className="emp-oferta-btns">
                       <button className="emp-btn" title="Ver postulantes" onClick={()=>setModalPostulantes({id: o._id, titulo: o.titulo})}><IcoUsers/></button>
                       <button className="emp-btn" title="Editar" onClick={()=>setEditando(o)}><IcoEdit/></button>
-                      <button className={`emp-btn ${o.activo?'danger':''}`} title={o.activo?'Cerrar oferta':'Reactivar'} onClick={()=>toggleActivo(o._id,o.activo)}>{o.activo?<IcoOff/>:<IcoOn/>}</button>
+                      <button type="button" className={`emp-btn ${o.activo?'danger':''}`} title={o.activo?'Cerrar oferta':'Reactivar'} onClick={() => toggleActivo(o._id,o.activo)}>{o.activo?<IcoOff/>:<IcoOn/>}</button>
                       <button className="emp-btn danger" title="Eliminar oferta" onClick={()=>eliminarOferta(o._id)}><IcoTrash/></button>
                       <Link to={`/oferta/${o._id}`} className="emp-btn" title="Ver pública">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
@@ -381,6 +396,27 @@ export default function VistaEmpresa({ usuario }) {
           ofertaTitulo={modalPostulantes.titulo}
           onClose={() => setModalPostulantes(null)}
         />
+      )}
+
+      {modalCierre && (
+        <div className="modal-cierre-overlay" onClick={() => setModalCierre(null)}>
+          <div className="modal-cierre-content" onClick={e => e.stopPropagation()}>
+            <h3>Cerrar oferta</h3>
+            <p className="modal-cierre-desc">Ingresa el motivo por el cual deseas cerrar esta oferta. Este motivo será visible para los postulantes.</p>
+            <textarea
+              className="modal-cierre-textarea"
+              placeholder="Ej: Se cubrió la vacante, oferta pausada temporalmente, etc."
+              value={motivoCierre}
+              onChange={e => setMotivoCierre(e.target.value)}
+              rows={3}
+              autoFocus
+            />
+            <div className="modal-cierre-btns">
+              <button className="btn-secondary" onClick={() => setModalCierre(null)}>Cancelar</button>
+              <button className="btn-primary" onClick={ejecutarCierre}>Cerrar oferta</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
