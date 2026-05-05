@@ -1,8 +1,12 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useLocation, Link } from 'react-router-dom';
 import { mensajesAPI } from '../api';
 import './Mensajes.css';
 
 function fmt(ts){ const d=(Date.now()-new Date(ts))/1000; if(d<60) return 'ahora'; if(d<3600) return `${Math.floor(d/60)}m`; if(d<86400) return new Date(ts).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}); return new Date(ts).toLocaleDateString('es-CL',{day:'numeric',month:'short'}); }
+
+function IcoCheck() { return <svg width="13" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>; }
+function IcoDoubleCheck() { return <><svg width="13" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 6 9 17 4 12"/></svg><svg width="13" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{marginLeft:-7}}><polyline points="22 6 13 17 8 12"/></svg></>; }
 
 export default function Mensajes({ usuario }) {
   const [convs,         setConvs]         = useState([]);
@@ -18,9 +22,16 @@ export default function Mensajes({ usuario }) {
   const [error,         setError]         = useState('');
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
+  const location = useLocation();
 
   const convActiva = convs.find(c => c._id === activa);
   const mensajes   = msgs[activa] ?? [];
+
+  // Calcular mensajes no leídos en la conversación activa
+  const noLeidosActiva = mensajes.filter(m => {
+    const esOtro = m.remitente_id?._id !== usuario?._id && m.remitente_id !== usuario?._id;
+    return esOtro && !m.leido;
+  }).length;
 
   // Cargar conversaciones al montar
   useEffect(() => {
@@ -28,10 +39,30 @@ export default function Mensajes({ usuario }) {
     mensajesAPI.conversaciones()
       .then(data => {
         setConvs(data);
-        if (data.length > 0) seleccionar(data[0]._id);
+        const convId = location.state?.convId;
+        if (convId) {
+          seleccionar(convId);
+        } else if (data.length > 0) {
+          seleccionar(data[0]._id);
+        }
       })
       .catch(e => setError(e.message))
       .finally(() => setCargConvs(false));
+  }, []);
+
+  // Escuchar evento para recargar conversaciones
+  useEffect(() => {
+    function handleRecargarConvs() {
+      setCargConvs(true);
+      mensajesAPI.conversaciones()
+        .then(data => {
+          setConvs(data);
+        })
+        .catch(e => setError(e.message))
+        .finally(() => setCargConvs(false));
+    }
+    window.addEventListener('recargar-conversaciones', handleRecargarConvs);
+    return () => window.removeEventListener('recargar-conversaciones', handleRecargarConvs);
   }, []);
 
   // Scroll al final cuando llegan mensajes nuevos
@@ -41,14 +72,15 @@ export default function Mensajes({ usuario }) {
 
   async function seleccionar(id) {
     setActiva(id);
-    setConvs(p => p.map(c => c._id===id ? {...c, noLeidos:0} : c));
-    if (msgs[id]) return; // ya cargados
     setCargMsgs(true);
     try {
       const data = await mensajesAPI.obtener(id);
       setMsgs(p => ({ ...p, [id]: data }));
+      setConvs(p => p.map(c => c._id===id ? {...c, noLeidos:0} : c));
+      await mensajesAPI.marcarLeidos(id);
       window.dispatchEvent(new Event('recargar-mensajes-no-leidos'));
-    } catch(e) { setError(e.message); } finally { setCargMsgs(false); setTimeout(()=>inputRef.current?.focus(),100); }
+    } catch(e) { setError(e.message); }
+    finally { setCargMsgs(false); setTimeout(()=>inputRef.current?.focus(),100); }
   }
 
   async function enviar() {
@@ -60,6 +92,7 @@ export default function Mensajes({ usuario }) {
       setMsgs(p => ({ ...p, [activa]: [...(p[activa]??[]), m] }));
       setConvs(p => p.map(c => c._id===activa ? {...c, ultimo_mensaje_preview:t, ultimo_mensaje_en:new Date().toISOString()} : c));
       setTexto('');
+      window.dispatchEvent(new Event('recargar-mensajes-no-leidos'));
     } catch(e) { setError(e.message); }
     finally { setEnviando(false); }
   }
@@ -79,6 +112,12 @@ export default function Mensajes({ usuario }) {
   const convsFiltradas = convs.filter(c =>
     c.participante?.nombre?.toLowerCase().includes(busqueda.toLowerCase())
   );
+
+  // Encontrar índice del primer mensaje no leído
+  const primerNoLeidoIdx = mensajes.findIndex(m => {
+    const esOtro = m.remitente_id?._id !== usuario?._id && m.remitente_id !== usuario?._id;
+    return esOtro && !m.leido;
+  });
 
   return (
     <div className="msgs-page">
@@ -110,7 +149,7 @@ export default function Mensajes({ usuario }) {
                   </div>
                   <div className="msgs-conv-bottom">
                     <span className="msgs-conv-ultimo">{c.ultimo_mensaje_preview || 'Iniciar conversación'}</span>
-                    {c.noLeidos>0 && <span className="msgs-badge">{c.noLeidos}</span>}
+                    {(c.noLeidos>0) && <span className="msgs-badge">{c.noLeidos}</span>}
                   </div>
                 </div>
               </button>
@@ -133,7 +172,7 @@ export default function Mensajes({ usuario }) {
                   {convActiva.participante?.nombre?.[0]??'?'}
                 </div>
                 <div className="msgs-chat-header-info">
-                  <p className="msgs-chat-nombre">{convActiva.participante?.nombre}</p>
+                  <Link to={`/perfil/${convActiva.participante?._id}`} className="msgs-chat-nombre">{convActiva.participante?.nombre}</Link>
                   <span className={`badge ${convActiva.participante?.rol==='empresa'?'badge-azul':'badge-verde'}`} style={{fontSize:10}}>
                     {convActiva.participante?.rol}
                   </span>
@@ -149,11 +188,20 @@ export default function Mensajes({ usuario }) {
                   const esYo       = m.remitente_id?._id === usuario?._id || m.remitente_id === usuario?._id;
                   const tsActual   = new Date(m.enviado_en).toDateString();
                   const tsAnterior = i>0 ? new Date(mensajes[i-1].enviado_en).toDateString() : null;
+
+                  // Mostrar separador de "no leídos" antes del primer mensaje no leído
+                  const mostrarSepNoLeidos = !esYo && !m.leido && (i === 0 || mensajes[i-1]?.leido);
+
                   return (
                     <div key={m._id}>
                       {tsActual !== tsAnterior && (
                         <div className="msgs-date-sep">
                           <span>{new Date(m.enviado_en).toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'})}</span>
+                        </div>
+                      )}
+                      {mostrarSepNoLeidos && (
+                        <div className="msgs-unread-sep">
+                          <span>{noLeidosActiva} mensaje{noLeidosActiva>1?'s':''} sin leer</span>
                         </div>
                       )}
                       <div className={`msgs-msg-row ${esYo?'yo':''}`}>
@@ -164,7 +212,14 @@ export default function Mensajes({ usuario }) {
                         )}
                         <div className={`msgs-burbuja ${esYo?'yo':''}`}>
                           <p>{m.contenido}</p>
-                          <span className="msgs-ts">{fmt(m.enviado_en)}</span>
+                          <div className={`msgs-ts-row ${esYo?'yo':''}`}>
+                            <span className="msgs-ts">{fmt(m.enviado_en)}</span>
+                            {esYo && (
+                              <span className={`msgs-status ${m.leido?'visto':'enviado'}`}>
+                                {m.leido ? <IcoDoubleCheck /> : <IcoCheck />}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>

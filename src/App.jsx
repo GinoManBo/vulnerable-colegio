@@ -9,10 +9,10 @@ import VistaEmpresa   from './pages/VistaEmpresa';
 import DetalleOferta  from './pages/DetalleOferta';
 import Mensajes       from './pages/Mensajes';
 import ChatOferta     from './pages/ChatOferta';
-import Chats          from './pages/Chats';
 import PanelAdmin     from './pages/PanelAdmin';
 import MisPostulaciones from './pages/MisPostulaciones';
 import PerfilPublico from './pages/PerfilPublico';
+import Notificaciones from './pages/Notificaciones';
 import './index.css';
 
 function RutaProtegida({ usuario, roles, children }) {
@@ -57,7 +57,6 @@ export default function App() {
         <Route path="/perfil"        element={<RutaProtegida usuario={usuario}><MiPerfil usuario={usuario} /></RutaProtegida>} />
         <Route path="/configuracion" element={<RutaProtegida usuario={usuario}><Configuracion /></RutaProtegida>} />
         <Route path="/mensajes"      element={<RutaProtegida usuario={usuario}><Mensajes usuario={usuario} /></RutaProtegida>} />
-        <Route path="/chats"         element={<RutaProtegida usuario={usuario}><Chats usuario={usuario} /></RutaProtegida>} />
         <Route path="/mis-postulaciones" element={<RutaProtegida usuario={usuario} roles={['estudiante']}><MisPostulaciones usuario={usuario} /></RutaProtegida>} />
         <Route path="/chat-oferta/:id" element={<RutaProtegida usuario={usuario} roles={['estudiante']}><ChatOferta usuario={usuario} /></RutaProtegida>} />
         <Route path="/oferta/:id"    element={<RutaProtegida usuario={usuario}><DetalleOferta usuario={usuario} /></RutaProtegida>} />
@@ -65,7 +64,7 @@ export default function App() {
         <Route path="/empresa"       element={<RutaProtegida usuario={usuario} roles={['empresa','admin']}><VistaEmpresa usuario={usuario} /></RutaProtegida>} />
         <Route path="/perfil/:id"    element={<RutaProtegida usuario={usuario}><PerfilPublico /></RutaProtegida>} />
         <Route path="/empresa/:id"   element={<RutaProtegida usuario={usuario}><div style={{padding:'40px 24px'}}>Perfil empresa</div></RutaProtegida>} />
-        <Route path="/notificaciones"element={<RutaProtegida usuario={usuario}><div style={{padding:'40px 24px'}}>Notificaciones</div></RutaProtegida>} />
+        <Route path="/notificaciones"element={<RutaProtegida usuario={usuario}><Notificaciones usuario={usuario} /></RutaProtegida>} />
         <Route path="/explorar"      element={<RutaProtegida usuario={usuario}><div style={{padding:'40px 24px'}}>Explorar</div></RutaProtegida>} />
         <Route path="*"              element={<Navigate to={usuario ? '/' : '/acceso'} replace />} />
       </Routes>

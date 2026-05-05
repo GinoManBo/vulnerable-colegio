@@ -38,7 +38,8 @@
 
 .msgs-chat-header { display:flex; align-items:center; gap:12px; padding:14px 20px; background:var(--gris-card); border-bottom:1px solid var(--gris-borde); flex-shrink:0; }
 .msgs-chat-header-info { flex:1; }
-.msgs-chat-nombre  { font-size:14.5px; font-weight:600; color:var(--texto); line-height:1.2; margin-bottom:2px; }
+.msgs-chat-nombre  { font-size:14.5px; font-weight:600; color:var(--texto); line-height:1.2; margin-bottom:2px; text-decoration:none; }
+.msgs-chat-nombre:hover { color:var(--azul); text-decoration:underline; }
 .msgs-chat-actions { display:flex; gap:4px; }
 .msgs-act-btn { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--gris-2); cursor:pointer; transition:background var(--transition),color var(--transition); background:none; border:none; }
 .msgs-act-btn:hover { background:var(--gris-bg); color:var(--texto); }
@@ -48,6 +49,10 @@
 .msgs-date-sep { display:flex; align-items:center; gap:12px; margin:12px 0; }
 .msgs-date-sep::before,.msgs-date-sep::after { content:''; flex:1; height:1px; background:var(--gris-borde); }
 .msgs-date-sep span { font-size:11.5px; color:var(--gris-2); white-space:nowrap; text-transform:capitalize; }
+
+.msgs-unread-sep { display:flex; align-items:center; gap:12px; margin:16px 0; }
+.msgs-unread-sep::before,.msgs-unread-sep::after { content:''; flex:1; height:1px; background:var(--rojo); opacity:0.3; }
+.msgs-unread-sep span { font-size:11.5px; color:var(--rojo); font-weight:600; white-space:nowrap; }
 
 .msgs-msg-row { display:flex; align-items:flex-end; gap:8px; }
 .msgs-msg-row.yo { flex-direction:row-reverse; }
@@ -62,6 +67,12 @@
 .msgs-burbuja.yo p { color:#fff; }
 .msgs-ts { display:block; font-size:10.5px; color:var(--gris-2); margin-top:4px; text-align:right; }
 .msgs-burbuja.yo .msgs-ts { color:rgba(255,255,255,.65); }
+
+.msgs-ts-row { display:flex; align-items:center; gap:4px; margin-top:4px; }
+.msgs-ts-row.yo { flex-direction:row-reverse; justify-content:flex-start; }
+.msgs-status { display:flex; align-items:center; color:var(--gris-2); }
+.msgs-burbuja.yo .msgs-status { color:rgba(255,255,255,.65); }
+.msgs-status.visto { color:rgba(255,255,255,.9); }
 
 .msgs-input-bar { display:flex; align-items:flex-end; gap:10px; padding:14px 20px; background:var(--gris-card); border-top:1px solid var(--gris-borde); flex-shrink:0; }
 .msgs-textarea { flex:1; padding:10px 14px; border:1px solid var(--gris-borde); border-radius:var(--radius-lg); font-size:14px; color:var(--texto); background:var(--gris-card); outline:none; resize:none; font-family:var(--font-body); line-height:1.5; max-height:120px; transition:border-color var(--transition); }

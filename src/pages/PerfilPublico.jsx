@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { perfilAPI } from '../api';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { perfilAPI, mensajesAPI } from '../api';
 import './MiPerfil.css';
 
 export default function PerfilPublico() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [datos, setDatos] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [ofertasActivas, setOfertasActivas] = useState([]);
+  const [enviandoMsg, setEnviandoMsg] = useState(false);
 
   useEffect(() => {
     async function cargarPerfil() {
@@ -32,6 +34,7 @@ export default function PerfilPublico() {
           foto: perfil.foto_perfil_url || perfil.logo_url || null,
           destrezas: perfil.destrezas || [],
           intereses: perfil.intereses || [],
+          usuario_id: res._id,
         });
 
         // Si es empresa, cargar ofertas activas
@@ -47,6 +50,21 @@ export default function PerfilPublico() {
     }
     cargarPerfil();
   }, [id]);
+
+  async function enviarMensaje() {
+    if (!datos?.usuario_id || enviandoMsg) return;
+    setEnviandoMsg(true);
+    try {
+      const conv = await mensajesAPI.iniciar(datos.usuario_id);
+      window.dispatchEvent(new Event('recargar-mensajes-no-leidos'));
+      window.dispatchEvent(new Event('recargar-conversaciones'));
+      navigate('/mensajes', { state: { convId: conv._id } });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setEnviandoMsg(false);
+    }
+  }
 
   if (cargando) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'60vh'}}>
@@ -110,6 +128,12 @@ export default function PerfilPublico() {
                   {datos.ciudad && <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>{datos.ciudad}</span>}
                   {datos.email && <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>{datos.email}</span>}
                 </div>
+                <button className="btn-mensaje" onClick={enviarMensaje} disabled={enviandoMsg}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                  </svg>
+                  {enviandoMsg ? 'Abriendo chat...' : 'Enviar mensaje'}
+                </button>
               </div>
             </div>
           </div>

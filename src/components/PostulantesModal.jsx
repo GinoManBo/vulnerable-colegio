@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ofertasAPI } from '../api';
+import { Link, useNavigate } from 'react-router-dom';
+import { ofertasAPI, mensajesAPI } from '../api';
 import './PostulantesModal.css';
 
 const ESTADO_CFG = {
@@ -15,6 +15,8 @@ export default function PostulantesModal({ ofertaId, ofertaTitulo, onClose }) {
   const [postulantes, setPostulantes] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
+  const [enviandoMsg, setEnviandoMsg] = useState({});
+  const navigate = useNavigate();
 
   useEffect(() => {
     const cargar = async () => {
@@ -38,6 +40,21 @@ export default function PostulantesModal({ ofertaId, ofertaTitulo, onClose }) {
       alert(`Error: ${err.message}`);
     }
   };
+
+  async function enviarMensaje(usuarioId) {
+    if (!usuarioId || enviandoMsg[usuarioId]) return;
+    setEnviandoMsg(p => ({ ...p, [usuarioId]: true }));
+    try {
+      await mensajesAPI.iniciar(usuarioId);
+      window.dispatchEvent(new Event('recargar-mensajes-no-leidos'));
+      window.dispatchEvent(new Event('recargar-conversaciones'));
+      navigate('/mensajes');
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setEnviandoMsg(p => ({ ...p, [usuarioId]: false }));
+    }
+  }
 
   return (
     <div className="postulantes-modal-overlay" onClick={onClose}>
@@ -125,6 +142,12 @@ export default function PostulantesModal({ ofertaId, ofertaTitulo, onClose }) {
                           <option key={v} value={v}>{label}</option>
                         ))}
                       </select>
+                      <button className="btn-mensaje-postulante" onClick={() => enviarMensaje(usuario._id)} disabled={enviandoMsg[usuario._id]}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                        {enviandoMsg[usuario._id] ? 'Abriendo...' : 'Mensaje'}
+                      </button>
                       <Link to={`/perfil/${usuario._id}`} className="btn-secondary btn-sm">
                         Ver perfil
                       </Link>

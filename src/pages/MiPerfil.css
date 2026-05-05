@@ -72,6 +72,24 @@
 .miperfil-meta span { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--gris-2); }
 .miperfil-header-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-shrink: 0; }
 
+.btn-mensaje {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 7px 14px;
+  border: 1px solid var(--azul);
+  border-radius: var(--radius-md);
+  background: var(--azul);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), opacity var(--transition);
+}
+.btn-mensaje:hover { background: var(--azul-hover); }
+.btn-mensaje:disabled { opacity: 0.6; cursor: not-allowed; }
+
 .edit-card { padding: 22px 24px; }
 .section-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--texto); margin-bottom: 16px; }
 .section-sep { height: 1px; background: var(--gris-borde); margin: 20px 0; }

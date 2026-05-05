@@ -223,6 +223,32 @@
   font-size: 12px;
 }
 
+.btn-mensaje-postulante {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--azul);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--azul);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  white-space: nowrap;
+}
+
+.btn-mensaje-postulante:hover {
+  background: var(--azul);
+  color: #fff;
+}
+
+.btn-mensaje-postulante:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Scrollbar personalizado */
 .postulantes-modal-body::-webkit-scrollbar {
   width: 8px;

@@ -99,9 +99,15 @@ export default function NavBar({ usuario, onLogout }) {
       const data = await mensajesAPI.noLeidos();
       setMensajesNoLeidos(data.totalNoLeidos || 0);
     } catch (err) {
-      // Silenciar error
     }
   }
+
+  // Polling para mensajes no leídos cada 10 segundos
+  useEffect(() => {
+    if (!usuario) return;
+    const interval = setInterval(cargarMensajesNoLeidos, 10000);
+    return () => clearInterval(interval);
+  }, [usuario]);
 
   // Escuchar evento para recargar notificaciones (ej. después de postular)
   useEffect(() => {
@@ -112,14 +118,18 @@ export default function NavBar({ usuario, onLogout }) {
     return () => window.removeEventListener('recargar-notificaciones', handleRecargar);
   }, []);
 
+  // Polling para notificaciones cada 10 segundos
+  useEffect(() => {
+    if (!usuario) return;
+    const interval = setInterval(cargarNotificaciones, 10000);
+    return () => clearInterval(interval);
+  }, [usuario]);
+
   // Escuchar evento para recargar mensajes no leídos
   useEffect(() => {
-    function handleRecargarMensajes() {
-      cargarMensajesNoLeidos();
-    }
-    window.addEventListener('recargar-mensajes-no-leidos', handleRecargarMensajes);
-    return () => window.removeEventListener('recargar-mensajes-no-leidos', handleRecargarMensajes);
-  }, []);
+    window.addEventListener('recargar-mensajes-no-leidos', cargarMensajesNoLeidos);
+    return () => window.removeEventListener('recargar-mensajes-no-leidos', cargarMensajesNoLeidos);
+  }, [usuario]);
 
   useEffect(() => {
     function handleClick(e) {
@@ -223,7 +233,7 @@ export default function NavBar({ usuario, onLogout }) {
             </Link>
           )}
 
-          <Link to="/chats" className={`nav-icon-btn icon-only ${location.pathname === '/chats' ? 'active' : ''}`} title="Chats">
+          <Link to="/mensajes" className={`nav-icon-btn icon-only ${location.pathname === '/mensajes' ? 'active' : ''}`} title="Mensajes">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>

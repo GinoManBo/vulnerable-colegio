@@ -598,6 +598,18 @@ app.post('/api/ofertas/:id/postular', auth, soloRoles('estudiante'), async (req,
       link:   `/oferta/${oferta._id}`,
     });
 
+    // Notificar a la empresa que recibió una nueva postulación
+    const perfilEmpresa = await PerfilEmpresa.findById(oferta.empresa_id);
+    if (perfilEmpresa) {
+      await Notificacion.create({
+        usuario_id: perfilEmpresa.usuario_id,
+        tipo: 'postulacion',
+        titulo: 'Nueva postulación recibida',
+        texto:  `Un estudiante ha postulado a tu oferta "${oferta.titulo}".`,
+        link:   `/oferta/${oferta._id}`,
+      });
+    }
+
     res.status(201).json(post);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -723,7 +735,12 @@ app.post('/api/mensajes/conversacion', auth, async (req, res) => {
     let conv = await Conversacion.findOne({
       participantes: { $all: [req.usuario._id, destinatario_id], $size: 2 },
     });
-    if (!conv) conv = await Conversacion.create({ participantes: [req.usuario._id, destinatario_id] });
+    if (!conv) {
+      conv = await Conversacion.create({ participantes: [req.usuario._id, destinatario_id], ultimo_mensaje_en: new Date() });
+    } else {
+      conv.ultimo_mensaje_en = new Date();
+      await conv.save();
+    }
 
     await conv.populate('participantes', 'nombre apellido rol');
     const otro = conv.participantes.find(p => !p._id.equals(req.usuario._id));
@@ -783,6 +800,41 @@ app.post('/api/mensajes/:convId', auth, async (req, res) => {
   }
 });
 
+app.patch('/api/mensajes/:convId/leidos', auth, async (req, res) => {
+  try {
+    const conv = await Conversacion.findById(req.params.convId);
+    if (!conv) return res.status(404).json({ error: 'Conversación no encontrada' });
+    if (!conv.participantes.some(p => p.equals(req.usuario._id)))
+      return res.status(403).json({ error: 'Sin acceso' });
+
+    const result = await Mensaje.updateMany(
+      { conversacion_id: conv._id, remitente_id: { $ne: req.usuario._id }, leido: false },
+      { leido: true, leido_en: new Date() }
+    );
+    res.json({ ok: true, modificados: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/mensajes/:convId/no-leidos', auth, async (req, res) => {
+  try {
+    const conv = await Conversacion.findById(req.params.convId);
+    if (!conv) return res.status(404).json({ error: 'Conversación no encontrada' });
+    if (!conv.participantes.some(p => p.equals(req.usuario._id)))
+      return res.status(403).json({ error: 'Sin acceso' });
+
+    const count = await Mensaje.countDocuments({
+      conversacion_id: conv._id,
+      remitente_id: { $ne: req.usuario._id },
+      leido: false,
+    });
+    res.json({ noLeidos: count });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─────────────────────────────────────────────
 //  NOTIFICACIONES
 // ─────────────────────────────────────────────
@@ -800,6 +852,20 @@ app.get('/api/notificaciones', auth, async (req, res) => {
 app.patch('/api/notificaciones/leer-todas', auth, async (req, res) => {
   try {
     await Notificacion.updateMany({ usuario_id: req.usuario._id, leida: false }, { leida: true });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/notificaciones/:notifId/leida', auth, async (req, res) => {
+  try {
+    const notif = await Notificacion.findOneAndUpdate(
+      { _id: req.params.notifId, usuario_id: req.usuario._id },
+      { leida: true },
+      { new: true }
+    );
+    if (!notif) return res.status(404).json({ error: 'Notificación no encontrada' });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

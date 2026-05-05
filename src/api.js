@@ -184,6 +184,14 @@ export const mensajesAPI = {
     body: JSON.stringify({ destinatario_id: usuarioId }),
   }),
 
+  // Marcar todos los mensajes de una conversación como leídos
+  marcarLeidos: (conversacionId) => fetchAPI(`/mensajes/${conversacionId}/leidos`, {
+    method: 'PATCH',
+  }),
+
+  // Obtener cantidad de mensajes no leídos en una conversación
+  noLeidosConv: (conversacionId) => fetchAPI(`/mensajes/${conversacionId}/no-leidos`),
+
   // Marcar mensaje como leído
   marcarLeido: (mensajeId) => fetchAPI(`/mensajes/${mensajeId}/leido`, {
     method: 'PATCH',
@@ -260,6 +268,11 @@ export const notificacionesAPI = {
 
   // Marcar todas como leídas
   marcarTodasLeidas: () => fetchAPI('/notificaciones/leer-todas', {
+    method: 'PATCH',
+  }),
+
+  // Marcar una notificación como leída
+  marcarLeida: (notifId) => fetchAPI(`/notificaciones/${notifId}/leida`, {
     method: 'PATCH',
   }),
 };

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ofertasAPI, perfilAPI } from '../api';
+import { Link, useNavigate } from 'react-router-dom';
+import { ofertasAPI, perfilAPI, mensajesAPI } from '../api';
 import PostulantesModal from '../components/PostulantesModal';
 import './VistaEmpresa.css';
 
@@ -136,9 +136,52 @@ export default function VistaEmpresa({ usuario }) {
         totalPost: 0,
         aceptados: 0,
       });
+      // Cargar total de postulantes al montar
+      cargarPostulantesStats(ofs);
     }).catch(e => setError(e.message))
       .finally(() => setCargando(false));
   }, []);
+
+  async function cargarPostulantesStats(ofs) {
+    try {
+      const todos = [];
+      for (const o of ofs) {
+        try {
+          const ps = await ofertasAPI.postulantes(o._id);
+          ps.forEach(p => todos.push({ ...p, _ofertaTitulo: o.titulo, _ofertaId: o._id }));
+        } catch {}
+      }
+      setStats(prev => ({
+        ...prev,
+        totalPost:  todos.length,
+        aceptados:  todos.filter(p=>p.estado==='aceptada').length,
+      }));
+    } catch {}
+  }
+
+  // Escuchar evento para actualizar stats de postulantes (ej. cuando un estudiante postula)
+  useEffect(() => {
+    function handleActualizar() {
+      if (ofertas.length > 0) cargarPostulantesStats(ofertas);
+    }
+    window.addEventListener('actualizar-stats-empresa', handleActualizar);
+    window.addEventListener('actualizar-postulaciones', handleActualizar);
+    // Actualizar cuando la ventana recupera el foco
+    window.addEventListener('focus', handleActualizar);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && ofertas.length > 0) cargarPostulantesStats(ofertas);
+    });
+    // Polling cada 15 segundos
+    const interval = setInterval(() => {
+      if (ofertas.length > 0) cargarPostulantesStats(ofertas);
+    }, 15000);
+    return () => {
+      window.removeEventListener('actualizar-stats-empresa', handleActualizar);
+      window.removeEventListener('actualizar-postulaciones', handleActualizar);
+      window.removeEventListener('focus', handleActualizar);
+      clearInterval(interval);
+    };
+  }, [ofertas]);
 
   // Cargar postulantes cuando cambia el tab
   useEffect(() => {
@@ -226,6 +269,24 @@ export default function VistaEmpresa({ usuario }) {
   async function cambiarEstadoPost(postId, estado) {
     await ofertasAPI.cambiarEstado(postId, estado);
     setPostulantes(p => p.map(x => x._id===postId ? {...x, estado} : x));
+  }
+
+  const navigate = useNavigate();
+  const [enviandoMsgPost, setEnviandoMsgPost] = useState({});
+
+  async function enviarMensajePost(usuarioId) {
+    if (!usuarioId || enviandoMsgPost[usuarioId]) return;
+    setEnviandoMsgPost(p => ({ ...p, [usuarioId]: true }));
+    try {
+      await mensajesAPI.iniciar(usuarioId);
+      window.dispatchEvent(new Event('recargar-mensajes-no-leidos'));
+      window.dispatchEvent(new Event('recargar-conversaciones'));
+      navigate('/mensajes');
+    } catch (err) {
+      alert(`Error: ${err.message}`);
+    } finally {
+      setEnviandoMsgPost(p => ({ ...p, [usuarioId]: false }));
+    }
   }
 
   const postFiltrados = filtroOferta==='todas'
@@ -351,6 +412,11 @@ export default function VistaEmpresa({ usuario }) {
                       <select value={p.estado} onChange={e=>cambiarEstadoPost(p._id,e.target.value)} className="estado-select">
                         {Object.entries(ESTADO_CFG).map(([v,{label}])=><option key={v} value={v}>{label}</option>)}
                       </select>
+                      <button className="emp-btn emp-btn-mensaje" onClick={() => enviarMensajePost(p.estudiante_id?.usuario_id?._id)} disabled={enviandoMsgPost[p.estudiante_id?.usuario_id?._id]} title="Enviar mensaje">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                        </svg>
+                      </button>
                       <Link to={`/perfil/${p.estudiante_id?.usuario_id?._id}`} className="emp-btn">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                       </Link>
