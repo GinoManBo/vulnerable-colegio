@@ -166,6 +166,9 @@ export const mensajesAPI = {
   // Obtener conversaciones del usuario
   conversaciones: () => fetchAPI('/mensajes'),
 
+  // Obtener total de mensajes no leídos
+  noLeidos: () => fetchAPI('/mensajes/no-leidos'),
+
   // Obtener mensajes de una conversación
   obtener: (conversacionId) => fetchAPI(`/mensajes/${conversacionId}`),
 

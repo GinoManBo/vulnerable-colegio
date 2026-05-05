@@ -18,6 +18,21 @@
   margin-bottom: 14px;
 }
 
+.sidebar-links { display: flex; flex-direction: column; gap: 4px; }
+
+.sidebar-link-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 8px;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  color: var(--texto);
+  font-size: 13.5px;
+  transition: background var(--transition);
+}
+.sidebar-link-item:hover { background: var(--gris-bg); }
+
 .sidebar-perfiles { display: flex; flex-direction: column; gap: 2px; }
 
 .sidebar-perfil-item {

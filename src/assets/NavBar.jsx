@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { notificacionesAPI, busquedaAPI } from '../api';
+import { notificacionesAPI, busquedaAPI, mensajesAPI } from '../api';
 import './navbar.css';
 
 function IcoHome()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>; }
@@ -33,6 +33,7 @@ export default function NavBar({ usuario, onLogout }) {
   const [notifs, setNotifs] = useState([]);
   const [resultados, setResultados] = useState({ empresas: [], usuarios: [] });
   const [buscando, setBuscando] = useState(false);
+  const [mensajesNoLeidos, setMensajesNoLeidos] = useState(0);
   const searchRef = useRef(null);
   const notifsRef = useRef(null);
   const perfilRef = useRef(null);
@@ -89,7 +90,18 @@ export default function NavBar({ usuario, onLogout }) {
 
   useEffect(() => {
     cargarNotificaciones();
+    cargarMensajesNoLeidos();
   }, [usuario]);
+
+  async function cargarMensajesNoLeidos() {
+    if (!usuario) return;
+    try {
+      const data = await mensajesAPI.noLeidos();
+      setMensajesNoLeidos(data.totalNoLeidos || 0);
+    } catch (err) {
+      // Silenciar error
+    }
+  }
 
   // Escuchar evento para recargar notificaciones (ej. después de postular)
   useEffect(() => {
@@ -98,6 +110,15 @@ export default function NavBar({ usuario, onLogout }) {
     }
     window.addEventListener('recargar-notificaciones', handleRecargar);
     return () => window.removeEventListener('recargar-notificaciones', handleRecargar);
+  }, []);
+
+  // Escuchar evento para recargar mensajes no leídos
+  useEffect(() => {
+    function handleRecargarMensajes() {
+      cargarMensajesNoLeidos();
+    }
+    window.addEventListener('recargar-mensajes-no-leidos', handleRecargarMensajes);
+    return () => window.removeEventListener('recargar-mensajes-no-leidos', handleRecargarMensajes);
   }, []);
 
   useEffect(() => {
@@ -201,6 +222,13 @@ export default function NavBar({ usuario, onLogout }) {
               <IcoBriefcase />
             </Link>
           )}
+
+          <Link to="/chats" className={`nav-icon-btn icon-only ${location.pathname === '/chats' ? 'active' : ''}`} title="Chats">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            {mensajesNoLeidos > 0 && <span className="notif-badge">{mensajesNoLeidos}</span>}
+          </Link>
 
           <div className="nav-icon-wrap" ref={notifsRef}>
             <button

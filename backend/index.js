@@ -694,6 +694,24 @@ app.get('/api/mensajes', auth, async (req, res) => {
   }
 });
 
+app.get('/api/mensajes/no-leidos', auth, async (req, res) => {
+  try {
+    const convs = await Conversacion.find({ participantes: req.usuario._id });
+    let totalNoLeidos = 0;
+    for (const c of convs) {
+      const count = await Mensaje.countDocuments({
+        conversacion_id: c._id,
+        remitente_id: { $ne: req.usuario._id },
+        leido: false,
+      });
+      totalNoLeidos += count;
+    }
+    res.json({ totalNoLeidos });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/mensajes/conversacion', auth, async (req, res) => {
   try {
     const { destinatario_id } = req.body;

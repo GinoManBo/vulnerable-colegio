@@ -45,10 +45,10 @@ export default function Mensajes({ usuario }) {
     if (msgs[id]) return; // ya cargados
     setCargMsgs(true);
     try {
-      const data = await mensajesAPI.obtenerMensajes(id);
+      const data = await mensajesAPI.obtener(id);
       setMsgs(p => ({ ...p, [id]: data }));
-    } catch(e) { setError(e.message); }
-    finally { setCargMsgs(false); setTimeout(()=>inputRef.current?.focus(),100); }
+      window.dispatchEvent(new Event('recargar-mensajes-no-leidos'));
+    } catch(e) { setError(e.message); } finally { setCargMsgs(false); setTimeout(()=>inputRef.current?.focus(),100); }
   }
 
   async function enviar() {
@@ -56,7 +56,7 @@ export default function Mensajes({ usuario }) {
     if (!t || !activa || enviando) return;
     setEnviando(true);
     try {
-      const m = await mensajesAPI.enviarMensaje(activa, t);
+      const m = await mensajesAPI.enviar(activa, { contenido: t });
       setMsgs(p => ({ ...p, [activa]: [...(p[activa]??[]), m] }));
       setConvs(p => p.map(c => c._id===activa ? {...c, ultimo_mensaje_preview:t, ultimo_mensaje_en:new Date().toISOString()} : c));
       setTexto('');
@@ -66,7 +66,7 @@ export default function Mensajes({ usuario }) {
 
   async function abrirNuevaConv(destinatarioId) {
     try {
-      const conv = await mensajesAPI.abrirConversacion(destinatarioId);
+      const conv = await mensajesAPI.iniciar(destinatarioId);
       const existe = convs.find(c => c._id === conv._id);
       if (!existe) {
         setConvs(p => [{ _id: conv._id, participante: conv.participante, ultimo_mensaje_preview:'', ultimo_mensaje_en: null, noLeidos:0 }, ...p]);
