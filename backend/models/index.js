@@ -202,6 +202,100 @@ const notificacionSchema = new Schema(
 const Notificacion = model("Notificacion", notificacionSchema);
 
 // ─────────────────────────────────────────────
+//  SOLICITUDES DE PERFIL
+//  (cuando un usuario quiere crear/editar su perfil)
+// ─────────────────────────────────────────────
+const solicitudPerfilSchema = new Schema(
+  {
+    usuario_id: { type: Types.ObjectId, ref: "User", required: true },
+    tipo: {
+      type: String,
+      enum: ["creacion", "modificacion"],
+      required: true,
+    },
+    rol: {
+      type: String,
+      enum: ["estudiante", "empresa"],
+      required: true,
+    },
+    // Datos que el usuario quiere guardar en su perfil
+    datos_solicitados: { type: Schema.Types.Mixed, required: true },
+    estado: {
+      type: String,
+      enum: ["pendiente", "aprobada", "rechazada"],
+      default: "pendiente",
+    },
+    motivo_rechazo: { type: String, maxlength: 500, default: null },
+    revisado_por: { type: Types.ObjectId, ref: "User", default: null },
+    revisado_en: { type: Date, default: null },
+  },
+  { timestamps: { createdAt: "creado_en", updatedAt: "actualizado_en" } }
+);
+
+const SolicitudPerfil = model("SolicitudPerfil", solicitudPerfilSchema);
+
+// ─────────────────────────────────────────────
+//  SOLICITUDES DE CV
+//  (cuando un estudiante sube un curriculum)
+// ─────────────────────────────────────────────
+const solicitudCVSchema = new Schema(
+  {
+    usuario_id: { type: Types.ObjectId, ref: "User", required: true },
+    curriculum_url: { type: String, required: true },
+    estado: {
+      type: String,
+      enum: ["pendiente", "aprobada", "rechazada"],
+      default: "pendiente",
+    },
+    motivo_rechazo: { type: String, maxlength: 500, default: null },
+    revisado_por: { type: Types.ObjectId, ref: "User", default: null },
+    revisado_en: { type: Date, default: null },
+  },
+  { timestamps: { createdAt: "creado_en", updatedAt: "actualizado_en" } }
+);
+
+const SolicitudCV = model("SolicitudCV", solicitudCVSchema);
+
+// ─────────────────────────────────────────────
+//  CONFIGURACIÓN DE LA APP
+// ─────────────────────────────────────────────
+const appConfigSchema = new Schema(
+  {
+    clave: { type: String, required: true, unique: true },
+    valor: { type: Schema.Types.Mixed, required: true },
+  },
+  { timestamps: { createdAt: "creado_en", updatedAt: "actualizado_en" } }
+);
+
+const AppConfig = model("AppConfig", appConfigSchema);
+
+// ─────────────────────────────────────────────
+//  REGISTRO DE AUDITORÍA
+// ─────────────────────────────────────────────
+const auditLogSchema = new Schema(
+  {
+    admin_id: { type: Types.ObjectId, ref: "User", required: true },
+    accion: {
+      type: String,
+      enum: ["crear", "modificar", "eliminar", "aprobar", "rechazar", "activar", "desactivar", "cambiar_config"],
+      required: true,
+    },
+    entidad: {
+      type: String,
+      enum: ["usuario", "perfil_estudiante", "perfil_empresa", "oferta", "solicitud_perfil", "solicitud_cv", "config"],
+      required: true,
+    },
+    entidad_id: { type: Types.ObjectId, default: null },
+    detalles: { type: Schema.Types.Mixed, default: null },
+  },
+  { timestamps: { createdAt: "creado_en" } }
+);
+
+auditLogSchema.index({ creado_en: -1 });
+
+const AuditLog = model("AuditLog", auditLogSchema);
+
+// ─────────────────────────────────────────────
 //  EXPORTS
 // ─────────────────────────────────────────────
 export {
@@ -215,4 +309,8 @@ export {
   Conversacion,
   Mensaje,
   Notificacion,
+  SolicitudPerfil,
+  SolicitudCV,
+  AppConfig,
+  AuditLog,
 };

@@ -1,0 +1,48 @@
+.auditoria-page  { min-height:calc(100vh - var(--nav-h)); padding:28px 24px; background:var(--gris-bg); }
+.auditoria-inner { max-width:900px; margin:0 auto; }
+
+.auditoria-top { display:flex; align-items:center; gap:16px; margin-bottom:28px; }
+.auditoria-ico { width:48px; height:48px; border-radius:var(--radius-lg); background:var(--azul-light); color:var(--azul); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.auditoria-titulo { font-family:var(--font-display); font-size:22px; font-weight:700; color:var(--texto); letter-spacing:-.3px; }
+.auditoria-sub { font-size:13px; color:var(--gris-2); margin-top:2px; }
+
+.auditoria-filtros { display:flex; flex-direction:column; gap:12px; margin-bottom:24px; padding:16px 20px; background:var(--gris-card); border:1px solid var(--gris-borde); border-radius:var(--radius-lg); }
+.auditoria-filtro-grupo { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.auditoria-filtro-label { font-size:12.5px; font-weight:600; color:var(--gris-2); min-width:60px; }
+.auditoria-chips { display:flex; gap:4px; flex-wrap:wrap; }
+.auditoria-chip { padding:4px 12px; border-radius:99px; font-size:12px; color:var(--gris-2); background:var(--gris-bg); border:1px solid var(--gris-borde); cursor:pointer; transition:all var(--transition); }
+.auditoria-chip:hover { border-color:var(--azul); color:var(--azul); }
+.auditoria-chip.on { background:var(--azul-light); border-color:var(--azul); color:var(--azul); font-weight:500; }
+
+.auditoria-vacio { text-align:center; padding:60px 20px; color:var(--gris-2); }
+.auditoria-vacio svg { margin-bottom:12px; }
+.auditoria-vacio p { font-size:14px; }
+
+.auditoria-timeline { display:flex; flex-direction:column; gap:0; }
+.auditoria-card { display:flex; gap:16px; padding:16px 0; position:relative; }
+.auditoria-card-line { position:absolute; left:19px; top:48px; bottom:0; width:2px; background:var(--gris-borde); }
+.auditoria-card:last-child .auditoria-card-line { display:none; }
+.auditoria-card-dot { width:12px; height:12px; border-radius:50%; background:var(--azul); border:2px solid var(--azul-light); flex-shrink:0; margin-top:6px; position:relative; z-index:1; }
+.auditoria-card-body { flex:1; background:var(--gris-card); border:1px solid var(--gris-borde); border-radius:var(--radius-lg); padding:16px 18px; }
+
+.auditoria-card-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.auditoria-badge { padding:3px 10px; border-radius:99px; font-size:11px; font-weight:600; text-transform:capitalize; }
+.auditoria-badge-verde { background:var(--verde-light); color:var(--verde); }
+.auditoria-badge-rojo { background:var(--rojo-light); color:var(--rojo); }
+.auditoria-badge-azul { background:var(--azul-light); color:var(--azul); }
+.auditoria-badge-naranja { background:var(--naranja-light); color:var(--naranja); }
+.auditoria-entidad { font-size:12px; color:var(--gris-2); }
+
+.auditoria-card-info { display:flex; align-items:flex-start; gap:12px; margin-bottom:10px; }
+.auditoria-admin { display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.auditoria-admin-avatar { width:28px; height:28px; border-radius:50%; background:var(--azul-light); color:var(--azul); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; }
+.auditoria-admin-nombre { font-size:12.5px; font-weight:600; color:var(--texto); }
+.auditoria-admin-email { font-size:11px; color:var(--gris-2); }
+.auditoria-detalles { font-size:12.5px; color:var(--texto-2); flex:1; }
+
+.auditoria-fecha { font-size:11px; color:var(--gris-2); margin:0; }
+
+@media(max-width:600px){
+  .auditoria-top { flex-direction:column; align-items:flex-start; }
+  .auditoria-card-info { flex-direction:column; }
+}

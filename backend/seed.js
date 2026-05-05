@@ -129,6 +129,17 @@ async function seed() {
       region: 'Bío-Bío',
     });
 
+    // Crear usuarios - ADMIN
+    console.log('🛡️  Creando administrador...');
+    const admin = await User.create({
+      nombre: 'Admin',
+      apellido: 'Sistema',
+      email: 'admin@admin.com',
+      password_hash: await hashPassword('123456'),
+      rol: 'admin',
+      activo: true,
+    });
+
     // Crear ofertas de empleo
     console.log('💼 Creando ofertas de empleo...');
     await PublicacionEmpleo.create({
@@ -207,11 +218,13 @@ async function seed() {
     console.log('════════════════════════════════════════════════');
     console.log('');
     console.log('📊 Datos creados:');
+    console.log('   • 1 administrador');
     console.log('   • 3 estudiantes de prueba');
     console.log('   • 3 empresas de prueba');
     console.log('   • 5 ofertas de empleo');
     console.log('');
     console.log('🔐 Credenciales de prueba:');
+    console.log('   Admin:   admin@admin.com | Contraseña: 123456');
     console.log('   Usuario: juan@example.com | Contraseña: 123456');
     console.log('   Usuario: rrhh@cmpc.cl | Contraseña: 123456');
     console.log('');

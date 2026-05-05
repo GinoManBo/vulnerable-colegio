@@ -23,6 +23,7 @@ export default function MiPerfil({ usuario }) {
   const [fotoPreview, setFotoPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const fileRef = useRef(null);
+  const cvRef = useRef(null);
 
   const [datos, setDatos] = useState({
     nombre: usuario?.nombre || '',
@@ -221,10 +222,10 @@ export default function MiPerfil({ usuario }) {
                 </div>
                 {editando && (
                   <>
-                    <button className="avatar-upload-btn" onClick={() => fileRef.current.click()} title="Cambiar foto">
+                    <button className="avatar-upload-btn" onClick={() => fileRef.current?.click()} title="Cambiar foto">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
                     </button>
-                    <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFoto} />
+                    <input ref={fileRef} type="file" accept="image/*" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={handleFoto} />
                   </>
                 )}
               </div>
@@ -332,12 +333,12 @@ export default function MiPerfil({ usuario }) {
               {!esEmpresa && (
                 <div className="curriculum-upload">
                   <label>Currículum (PDF)</label>
-                  <div className="cv-drop" onClick={() => document.getElementById('cv-input').click()}>
+                  <div className="cv-drop" onClick={() => cvRef.current?.click()}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     <span>{curriculum ? curriculum : 'Haz clic para subir tu CV'}</span>
                     <span className="cv-hint">PDF, máx. 5 MB</span>
-                    <input id="cv-input" type="file" accept=".pdf" style={{ display: 'none' }} onChange={handleCurriculum} />
                   </div>
+                  <input ref={cvRef} type="file" accept=".pdf" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={handleCurriculum} />
                 </div>
               )}
             </div>

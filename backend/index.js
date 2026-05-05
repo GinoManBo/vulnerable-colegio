@@ -17,6 +17,10 @@ import {
   Conversacion,
   Mensaje,
   Notificacion,
+  SolicitudPerfil,
+  SolicitudCV,
+  AppConfig,
+  AuditLog,
 } from './models/index.js';
 
 dotenv.config();
@@ -106,17 +110,40 @@ app.post('/api/auth/registro', async (req, res) => {
       rol, activo: true,
     });
 
+    const aprobacionAuto = await getConfig('aprobacion_auto_perfiles', false);
+
     if (rol === 'estudiante') {
-      await PerfilEstudiante.create({ usuario_id: usuario._id, especialidad: especialidad || '' });
+      const datosPerfil = { usuario_id: usuario._id, especialidad: especialidad || '' };
+      if (aprobacionAuto) {
+        await PerfilEstudiante.create(datosPerfil);
+      } else {
+        await SolicitudPerfil.create({
+          usuario_id: usuario._id,
+          tipo: 'creacion',
+          rol: 'estudiante',
+          datos_solicitados: datosPerfil,
+        });
+      }
     } else {
       if (!nombre_empresa)
         return res.status(400).json({ error: 'Nombre de empresa requerido' });
-      await PerfilEmpresa.create({ usuario_id: usuario._id, nombre_empresa: nombre_empresa.trim() });
+      const datosPerfil = { usuario_id: usuario._id, nombre_empresa: nombre_empresa.trim() };
+      if (aprobacionAuto) {
+        await PerfilEmpresa.create(datosPerfil);
+      } else {
+        await SolicitudPerfil.create({
+          usuario_id: usuario._id,
+          tipo: 'creacion',
+          rol: 'empresa',
+          datos_solicitados: datosPerfil,
+        });
+      }
     }
 
     res.status(201).json({
       token: generarToken(usuario._id),
       usuario: { _id: usuario._id, nombre: usuario.nombre, apellido: usuario.apellido, email: usuario.email, rol: usuario.rol },
+      perfilPendiente: !aprobacionAuto,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -909,6 +936,19 @@ app.get('/api/admin/usuarios', auth, soloRoles('admin'), async (req, res) => {
 app.patch('/api/admin/usuarios/:id/activo', auth, soloRoles('admin'), async (req, res) => {
   try {
     const u = await User.findByIdAndUpdate(req.params.id, { activo: req.body.activo }, { returnDocument: 'after' }).select('-password_hash');
+    
+    await AuditLog.create({
+      admin_id: req.usuario._id,
+      accion: req.body.activo ? 'activar' : 'desactivar',
+      entidad: 'usuario',
+      entidad_id: req.params.id,
+      detalles: {
+        usuario: `${u?.nombre} ${u?.apellido}`,
+        email: u?.email,
+        rol: u?.rol,
+      },
+    });
+    
     res.json(u);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -917,7 +957,21 @@ app.patch('/api/admin/usuarios/:id/activo', auth, soloRoles('admin'), async (req
 
 app.delete('/api/admin/usuarios/:id', auth, soloRoles('admin'), async (req, res) => {
   try {
+    const u = await User.findById(req.params.id);
     await User.findByIdAndDelete(req.params.id);
+    
+    await AuditLog.create({
+      admin_id: req.usuario._id,
+      accion: 'eliminar',
+      entidad: 'usuario',
+      entidad_id: req.params.id,
+      detalles: {
+        usuario: `${u?.nombre} ${u?.apellido}`,
+        email: u?.email,
+        rol: u?.rol,
+      },
+    });
+    
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -930,6 +984,315 @@ app.get('/api/admin/todas-ofertas', auth, soloRoles('admin'), async (req, res) =
       .populate('empresa_id', 'nombre_empresa')
       .sort({ publicado_en: -1 });
     res.json(ofertas);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+//  ADMIN - SOLICITUDES DE PERFIL
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/solicitudes-perfil', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const { estado } = req.query;
+    const filtro = {};
+    if (estado && estado !== 'todas') filtro.estado = estado;
+    const solicitudes = await SolicitudPerfil.find(filtro)
+      .populate('usuario_id', 'nombre apellido email rol')
+      .populate('revisado_por', 'nombre')
+      .sort({ creado_en: -1 });
+    res.json(solicitudes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/solicitudes-perfil/:id/aprobar', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const solicitud = await SolicitudPerfil.findById(req.params.id).populate('usuario_id');
+    if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    solicitud.estado = 'aprobada';
+    solicitud.revisado_por = req.usuario._id;
+    solicitud.revisado_en = new Date();
+    await solicitud.save();
+
+    // Crear o actualizar el perfil del usuario
+    if (solicitud.rol === 'estudiante') {
+      await PerfilEstudiante.findOneAndUpdate(
+        { usuario_id: solicitud.usuario_id._id },
+        { ...solicitud.datos_solicitados, usuario_id: solicitud.usuario_id._id },
+        { upsert: true, new: true }
+      );
+    } else if (solicitud.rol === 'empresa') {
+      await PerfilEmpresa.findOneAndUpdate(
+        { usuario_id: solicitud.usuario_id._id },
+        { ...solicitud.datos_solicitados, usuario_id: solicitud.usuario_id._id },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Auditoría
+    await AuditLog.create({
+      admin_id: req.usuario._id,
+      accion: 'aprobar',
+      entidad: 'solicitud_perfil',
+      entidad_id: solicitud._id,
+      detalles: {
+        usuario: `${solicitud.usuario_id?.nombre} ${solicitud.usuario_id?.apellido}`,
+        tipo: solicitud.tipo,
+        rol: solicitud.rol,
+      },
+    });
+
+    // Notificar al usuario
+    await Notificacion.create({
+      usuario_id: solicitud.usuario_id._id,
+      tipo: 'otra',
+      titulo: 'Perfil aprobado',
+      texto: `Tu solicitud de ${solicitud.tipo === 'creacion' ? 'creación' : 'modificación'} de perfil ha sido aprobada. Ya puedes acceder a todas las funcionalidades.`,
+      link: solicitud.rol === 'estudiante' ? '/' : '/empresa',
+    });
+
+    res.json({ ok: true, solicitud });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/solicitudes-perfil/:id/rechazar', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const { motivo } = req.body;
+    const solicitud = await SolicitudPerfil.findById(req.params.id).populate('usuario_id');
+    if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    solicitud.estado = 'rechazada';
+    solicitud.motivo_rechazo = motivo || 'Sin motivo especificado';
+    solicitud.revisado_por = req.usuario._id;
+    solicitud.revisado_en = new Date();
+    await solicitud.save();
+
+    // Auditoría
+    await AuditLog.create({
+      admin_id: req.usuario._id,
+      accion: 'rechazar',
+      entidad: 'solicitud_perfil',
+      entidad_id: solicitud._id,
+      detalles: {
+        usuario: `${solicitud.usuario_id?.nombre} ${solicitud.usuario_id?.apellido}`,
+        tipo: solicitud.tipo,
+        rol: solicitud.rol,
+        motivo: solicitud.motivo_rechazo,
+      },
+    });
+
+    // Notificar al usuario
+    await Notificacion.create({
+      usuario_id: solicitud.usuario_id._id,
+      tipo: 'otra',
+      titulo: 'Perfil rechazado',
+      texto: `Tu solicitud de ${solicitud.tipo === 'creacion' ? 'creación' : 'modificación'} de perfil ha sido rechazada. Motivo: ${solicitud.motivo_rechazo}`,
+      link: '/perfil',
+    });
+
+    res.json({ ok: true, solicitud });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+//  ADMIN - SOLICITUDES DE CV
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/solicitudes-cv', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const { estado } = req.query;
+    const filtro = {};
+    if (estado && estado !== 'todas') filtro.estado = estado;
+    const solicitudes = await SolicitudCV.find(filtro)
+      .populate('usuario_id', 'nombre apellido email')
+      .populate('revisado_por', 'nombre')
+      .sort({ creado_en: -1 });
+    res.json(solicitudes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/solicitudes-cv/:id/aprobar', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const solicitud = await SolicitudCV.findById(req.params.id).populate('usuario_id');
+    if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    solicitud.estado = 'aprobada';
+    solicitud.revisado_por = req.usuario._id;
+    solicitud.revisado_en = new Date();
+    await solicitud.save();
+
+    // Actualizar el CV del estudiante
+    await PerfilEstudiante.findOneAndUpdate(
+      { usuario_id: solicitud.usuario_id._id },
+      { curriculum_url: solicitud.curriculum_url },
+      { upsert: true }
+    );
+
+    // Auditoría
+    await AuditLog.create({
+      admin_id: req.usuario._id,
+      accion: 'aprobar',
+      entidad: 'solicitud_cv',
+      entidad_id: solicitud._id,
+      detalles: {
+        usuario: `${solicitud.usuario_id?.nombre} ${solicitud.usuario_id?.apellido}`,
+        cv_url: solicitud.curriculum_url,
+      },
+    });
+
+    // Notificar al usuario
+    await Notificacion.create({
+      usuario_id: solicitud.usuario_id._id,
+      tipo: 'otra',
+      titulo: 'CV aprobado',
+      texto: 'Tu currículum ha sido aprobado y ya está visible en tu perfil.',
+      link: '/perfil',
+    });
+
+    res.json({ ok: true, solicitud });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/solicitudes-cv/:id/rechazar', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const { motivo } = req.body;
+    const solicitud = await SolicitudCV.findById(req.params.id).populate('usuario_id');
+    if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    solicitud.estado = 'rechazada';
+    solicitud.motivo_rechazo = motivo || 'Sin motivo especificado';
+    solicitud.revisado_por = req.usuario._id;
+    solicitud.revisado_en = new Date();
+    await solicitud.save();
+
+    // Auditoría
+    await AuditLog.create({
+      admin_id: req.usuario._id,
+      accion: 'rechazar',
+      entidad: 'solicitud_cv',
+      entidad_id: solicitud._id,
+      detalles: {
+        usuario: `${solicitud.usuario_id?.nombre} ${solicitud.usuario_id?.apellido}`,
+        motivo: solicitud.motivo_rechazo,
+      },
+    });
+
+    // Notificar al usuario
+    await Notificacion.create({
+      usuario_id: solicitud.usuario_id._id,
+      tipo: 'otra',
+      titulo: 'CV rechazado',
+      texto: `Tu currículum ha sido rechazado. Motivo: ${solicitud.motivo_rechazo}`,
+      link: '/perfil',
+    });
+
+    res.json({ ok: true, solicitud });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/solicitudes-stats', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const [perfilesPendientes, cvsPendientes, perfilesAprobados, cvsAprobados, perfilesRechazados, cvsRechazados] = await Promise.all([
+      SolicitudPerfil.countDocuments({ estado: 'pendiente' }),
+      SolicitudCV.countDocuments({ estado: 'pendiente' }),
+      SolicitudPerfil.countDocuments({ estado: 'aprobada' }),
+      SolicitudCV.countDocuments({ estado: 'aprobada' }),
+      SolicitudPerfil.countDocuments({ estado: 'rechazada' }),
+      SolicitudCV.countDocuments({ estado: 'rechazada' }),
+    ]);
+    res.json({
+      perfilesPendientes, cvsPendientes,
+      perfilesAprobados, cvsAprobados,
+      perfilesRechazados, cvsRechazados,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+//  ADMIN - CONFIGURACIÓN
+// ─────────────────────────────────────────────
+
+async function getConfig(clave, valorDefault) {
+  let config = await AppConfig.findOne({ clave });
+  if (!config) {
+    config = await AppConfig.create({ clave, valor: valorDefault });
+  }
+  return config.valor;
+}
+
+app.get('/api/admin/config', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const [aprobacionAutoPerfiles, aprobacionAutoCV] = await Promise.all([
+      getConfig('aprobacion_auto_perfiles', false),
+      getConfig('aprobacion_auto_cv', false),
+    ]);
+    res.json({ aprobacionAutoPerfiles, aprobacionAutoCV });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/config', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const { clave, valor } = req.body;
+    if (!['aprobacion_auto_perfiles', 'aprobacion_auto_cv'].includes(clave)) {
+      return res.status(400).json({ error: 'Clave no válida' });
+    }
+    const anterior = await AppConfig.findOne({ clave });
+    const config = await AppConfig.findOneAndUpdate(
+      { clave },
+      { valor },
+      { upsert: true, new: true }
+    );
+
+    await AuditLog.create({
+      admin_id: req.usuario._id,
+      accion: 'cambiar_config',
+      entidad: 'config',
+      detalles: {
+        clave,
+        valor_anterior: anterior?.valor,
+        valor_nuevo: valor,
+      },
+    });
+
+    res.json({ ok: true, config });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+//  ADMIN - AUDITORÍA
+// ─────────────────────────────────────────────
+
+app.get('/api/admin/auditoria', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const { entidad, accion } = req.query;
+    const filtro = {};
+    if (entidad && entidad !== 'todas') filtro.entidad = entidad;
+    if (accion && accion !== 'todas') filtro.accion = accion;
+    const logs = await AuditLog.find(filtro)
+      .populate('admin_id', 'nombre apellido email')
+      .sort({ creado_en: -1 })
+      .limit(200);
+    res.json(logs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

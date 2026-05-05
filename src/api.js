@@ -204,6 +204,7 @@ export const mensajesAPI = {
 export const adminAPI = {
   // Obtener estadísticas
   estadisticas: () => fetchAPI('/admin/estadisticas'),
+  stats: () => fetchAPI('/admin/stats'),
 
   // Obtener usuarios
   usuarios: (filtros = {}) => {
@@ -216,6 +217,7 @@ export const adminAPI = {
     const params = new URLSearchParams(filtros);
     return fetchAPI(`/admin/ofertas?${params}`);
   },
+  todasOfertas: () => fetchAPI('/admin/todas-ofertas'),
 
   // Cambiar rol de usuario
   cambiarRol: (usuarioId, rol) => fetchAPI(`/admin/usuarios/${usuarioId}/rol`, {
@@ -223,15 +225,32 @@ export const adminAPI = {
     body: JSON.stringify({ rol }),
   }),
 
+  // Activar/desactivar usuario
+  toggleActivo: (usuarioId, activo) => fetchAPI(`/admin/usuarios/${usuarioId}/activo`, {
+    method: 'PATCH',
+    body: JSON.stringify({ activo }),
+  }),
+
   // Desactivar usuario
   desactivarUsuario: (usuarioId) => fetchAPI(`/admin/usuarios/${usuarioId}/desactivar`, {
     method: 'PATCH',
+  }),
+
+  // Eliminar usuario
+  eliminarUsuario: (usuarioId) => fetchAPI(`/admin/usuarios/${usuarioId}`, {
+    method: 'DELETE',
   }),
 
   // Eliminar oferta
   eliminarOferta: (ofertaId) => fetchAPI(`/admin/ofertas/${ofertaId}`, {
     method: 'DELETE',
   }),
+
+  // Obtener logs de auditoría
+  auditoria: (filtros = {}) => {
+    const params = new URLSearchParams(filtros);
+    return fetchAPI(`/admin/auditoria?${params}`);
+  },
 };
 
 // ─────────────────────────────────────────────

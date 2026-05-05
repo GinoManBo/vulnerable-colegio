@@ -13,11 +13,88 @@
 .admin-stat-delta{ display:block; font-size:11.5px; color:var(--verde); font-weight:500; }
 
 .admin-tabs { display:flex; border-bottom:1px solid var(--gris-borde); margin-bottom:20px; background:var(--gris-card); border-radius:var(--radius-lg) var(--radius-lg) 0 0; overflow:hidden; }
-.admin-tab  { padding:12px 22px; font-size:13.5px; font-weight:500; color:var(--gris-2); background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; transition:color var(--transition),border-color var(--transition); }
+.admin-tab  { padding:12px 22px; font-size:13.5px; font-weight:500; color:var(--gris-2); background:none; border:none; border-bottom:2px solid transparent; margin-bottom:-1px; cursor:pointer; transition:color var(--transition),border-color var(--transition); position:relative; }
 .admin-tab:hover  { color:var(--texto); background:var(--gris-bg); }
 .admin-tab.active { color:var(--azul); border-bottom-color:var(--azul); background:none; }
+.admin-tab-badge { position:absolute; top:4px; right:4px; background:var(--naranja); color:#fff; font-size:10px; font-weight:700; min-width:16px; height:16px; border-radius:99px; display:flex; align-items:center; justify-content:center; padding:0 4px; }
+
+/* Config bar */
+.admin-config-bar { display:flex; gap:24px; margin-bottom:20px; padding:14px 20px; background:var(--gris-card); border:1px solid var(--gris-borde); border-radius:var(--radius-lg); flex-wrap:wrap; }
+
+/* Toggle switch */
+.toggle-switch-wrap { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
+.toggle-label { font-size:13px; color:var(--texto); font-weight:500; }
+.toggle-switch { width:44px; height:24px; border-radius:12px; background:var(--gris-borde); position:relative; transition:background .2s; }
+.toggle-switch.on { background:var(--azul); }
+.toggle-knob { width:18px; height:18px; border-radius:50%; background:#fff; position:absolute; top:3px; left:3px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+.toggle-switch.on .toggle-knob { transform:translateX(20px); }
 
 .admin-seccion { animation:fadeInUp .2s ease; }
+
+/* Dashboard grid */
+.admin-dashboard-grid { display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; }
+.admin-dash-card { padding:22px; }
+.admin-dash-card h3 { font-family:var(--font-display); font-size:14px; font-weight:600; color:var(--texto); margin-bottom:16px; }
+.admin-dash-stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:16px; }
+.dash-stat { text-align:center; padding:12px 8px; border-radius:var(--radius-md); background:var(--gris-bg); }
+.dash-stat.pending { border-left:3px solid var(--naranja); }
+.dash-stat.approved { border-left:3px solid var(--verde); }
+.dash-stat.rejected { border-left:3px solid var(--rojo); }
+.dash-stat-num { display:block; font-family:var(--font-display); font-size:24px; font-weight:700; line-height:1; }
+.dash-stat-label { display:block; font-size:11px; color:var(--gris-2); margin-top:4px; }
+.btn-dash-ir { width:100%; text-align:center; margin-top:8px; }
+.admin-dash-config { display:flex; flex-direction:column; gap:14px; }
+
+/* Solicitudes grid */
+.solicitudes-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:16px; }
+.solicitud-card { padding:18px; position:relative; }
+.solicitud-card.pendiente { border-left:3px solid var(--naranja); }
+.solicitud-card.aprobada { border-left:3px solid var(--verde); opacity:.7; }
+.solicitud-card.rechazada { border-left:3px solid var(--rojo); opacity:.7; }
+.solicitud-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.solicitud-user { display:flex; align-items:center; gap:10px; }
+.solicitud-avatar { width:36px; height:36px; border-radius:50%; background:var(--azul-light); color:var(--azul); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; font-family:var(--font-display); }
+.solicitud-nombre { font-size:13.5px; font-weight:600; color:var(--texto); }
+.solicitud-email { font-size:12px; color:var(--gris-2); }
+.solicitud-body { margin-bottom:14px; }
+.solicitud-tipo { font-size:13px; color:var(--texto-2); margin-bottom:10px; }
+.solicitud-rol { font-weight:600; color:var(--azul); text-transform:capitalize; }
+.solicitud-datos { background:var(--gris-bg); border-radius:var(--radius-md); padding:10px 12px; margin-bottom:10px; }
+.solicitud-dato { display:flex; gap:6px; font-size:12px; margin-bottom:4px; }
+.solicitud-dato:last-child { margin-bottom:0; }
+.solicitud-dato-label { font-weight:600; color:var(--texto-2); min-width:80px; text-transform:capitalize; }
+.solicitud-dato-val { color:var(--texto); word-break:break-all; }
+.solicitud-motivo { font-size:12px; color:var(--rojo); background:var(--rojo-light); padding:8px 10px; border-radius:var(--radius-sm); margin-bottom:8px; }
+.solicitud-fecha { font-size:11px; color:var(--gris-2); }
+.solicitud-cv-link { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:var(--azul-light); color:var(--azul); border-radius:var(--radius-sm); font-size:13px; font-weight:500; text-decoration:none; margin-bottom:10px; }
+.solicitud-cv-link:hover { background:var(--azul); color:#fff; }
+.solicitud-acciones { display:flex; gap:8px; padding-top:12px; border-top:1px solid var(--gris-borde); }
+.btn-aprobar { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:var(--verde); color:#fff; border:none; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer; transition:opacity .2s; }
+.btn-aprobar:hover { opacity:.85; }
+.btn-rechazar { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:var(--rojo); color:#fff; border:none; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer; transition:opacity .2s; }
+.btn-rechazar:hover { opacity:.85; }
+
+/* Rechazo modal */
+.rechazo-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .15s ease; }
+.rechazo-modal { background:var(--gris-card); border-radius:var(--radius-lg); padding:24px; width:100%; max-width:400px; box-shadow:0 20px 60px rgba(0,0,0,.2); }
+.rechazo-modal h3 { font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--texto); margin-bottom:12px; }
+.rechazo-modal textarea { width:100%; padding:10px 12px; border:1px solid var(--gris-borde); border-radius:var(--radius-md); font-size:13px; color:var(--texto); background:var(--gris-card); outline:none; resize:vertical; font-family:var(--font-body); margin-bottom:14px; }
+.rechazo-modal-btns { display:flex; gap:8px; justify-content:flex-end; }
+
+@media(max-width:900px){
+  .admin-stats { grid-template-columns:1fr 1fr; }
+  .admin-tabla-header, .admin-tabla-fila { grid-template-columns:1fr 80px 80px; }
+  .admin-tabla-header span:nth-child(n+4),
+  .admin-tabla-fila  >:nth-child(n+4) { display:none; }
+  .admin-tabla-fila  >:last-child { display:flex; }
+  .admin-stats-grid { grid-template-columns:1fr; }
+  .admin-accs-grid  { grid-template-columns:1fr; }
+  .admin-dashboard-grid { grid-template-columns:1fr; }
+  .solicitudes-grid { grid-template-columns:1fr; }
+}
+@media(max-width:600px){
+  .admin-stats { grid-template-columns:1fr 1fr; }
+}
 
 .admin-toolbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
 .admin-busq-wrap { display:flex; align-items:center; gap:8px; background:var(--gris-card); border:1px solid var(--gris-borde); border-radius:var(--radius-md); padding:0 12px; height:36px; color:var(--gris-2); flex:1; min-width:200px; }

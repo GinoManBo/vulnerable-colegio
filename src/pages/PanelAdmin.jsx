@@ -1,19 +1,55 @@
 import { useState, useEffect } from 'react';
-import { adminAPI } from '../api';
+import { adminAPI, fetchAPI } from '../api';
 import './PanelAdmin.css';
 
-const TABS = [['usuarios','Usuarios'],['ofertas','Ofertas'],['estadisticas','Estadísticas']];
+const TABS = [
+  ['dashboard', 'Dashboard'],
+  ['solicitudes-perfil', 'Solicitudes Perfil'],
+  ['solicitudes-cv', 'Solicitudes CV'],
+  ['auditoria', 'Auditoría'],
+  ['usuarios', 'Usuarios'],
+  ['ofertas', 'Ofertas'],
+  ['estadisticas', 'Estadísticas'],
+];
 
 function IcoBan()   { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>; }
 function IcoCheck() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>; }
 function IcoTrash() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>; }
+function IcoX()     { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>; }
 
 function EmptyState({ msg }) {
   return <div style={{textAlign:'center',padding:'40px 20px',color:'var(--gris-2)',fontSize:14}}>{msg}</div>;
 }
 
+function ToggleSwitch({ activo, onChange, label }) {
+  return (
+    <label className="toggle-switch-wrap">
+      <span className="toggle-label">{label}</span>
+      <div className={`toggle-switch ${activo ? 'on' : ''}`} onClick={() => onChange(!activo)}>
+        <div className="toggle-knob" />
+      </div>
+    </label>
+  );
+}
+
+function RechazoModal({ onConfirm, onCancel }) {
+  const [motivo, setMotivo] = useState('');
+  return (
+    <div className="rechazo-modal-overlay" onClick={onCancel}>
+      <div className="rechazo-modal" onClick={e => e.stopPropagation()}>
+        <h3>Motivo de rechazo</h3>
+        <textarea placeholder="Indica el motivo del rechazo..." value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} autoFocus />
+        <div className="rechazo-modal-btns">
+          <button className="btn-secondary" onClick={onCancel}>Cancelar</button>
+          <button className="btn-primary" onClick={() => onConfirm(motivo)}>Rechazar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PanelAdmin({ usuario }) {
-  const [tab,      setTab]      = useState('usuarios');
+  const [tab,      setTab]      = useState('dashboard');
   const [usuarios, setUsuarios] = useState([]);
   const [ofertas,  setOfertas]  = useState([]);
   const [stats,    setStats]    = useState(null);
@@ -22,14 +58,72 @@ export default function PanelAdmin({ usuario }) {
   const [cargando, setCargando] = useState(true);
   const [error,    setError]    = useState('');
 
-  // Carga inicial: stats y usuarios
+  // Solicitudes
+  const [solicitudesPerfil, setSolicitudesPerfil] = useState([]);
+  const [solicitudesCV, setSolicitudesCV] = useState([]);
+  const [filtroSolicitud, setFiltroSolicitud] = useState('pendiente');
+  const [cargSolicitudes, setCargSolicitudes] = useState(false);
+  const [rechazoModal, setRechazoModal] = useState(null);
+
+  // Auditoría
+  const [auditoria, setAuditoria] = useState([]);
+  const [cargAuditoria, setCargAuditoria] = useState(false);
+  const [filtroAuditoria, setFiltroAuditoria] = useState('todas');
+
+  // Config
+  const [config, setConfig] = useState({ aprobacionAutoPerfiles: false, aprobacionAutoCV: false });
+
+  // Stats solicitudes
+  const [statsSolicitudes, setStatsSolicitudes] = useState(null);
+
+  // Carga inicial
   useEffect(() => {
     setCargando(true);
-    Promise.all([adminAPI.stats(), adminAPI.usuarios()])
-      .then(([s, us]) => { setStats(s); setUsuarios(us); })
-      .catch(e => setError(e.message))
+    Promise.all([
+      adminAPI.stats().catch(() => null),
+      adminAPI.usuarios().catch(() => []),
+      cargarConfig(),
+      cargarStatsSolicitudes(),
+    ])
+      .then(([s, us, cfg, statsSol]) => {
+        if (s) setStats(s);
+        setUsuarios(us);
+        setConfig(cfg);
+        setStatsSolicitudes(statsSol);
+      })
+      .catch(e => {
+        console.error('Error cargando admin:', e);
+        setError(e.message);
+      })
       .finally(() => setCargando(false));
   }, []);
+
+  async function cargarConfig() {
+    try {
+      const data = await fetchAPI('/admin/config');
+      return data;
+    } catch {
+      return { aprobacionAutoPerfiles: false, aprobacionAutoCV: false };
+    }
+  }
+
+  async function cargarStatsSolicitudes() {
+    try {
+      return await fetchAPI('/admin/solicitudes-stats');
+    } catch {
+      return null;
+    }
+  }
+
+  async function toggleConfig(clave, valor) {
+    setConfig(p => ({ ...p, [clave]: valor }));
+    try {
+      await fetchAPI('/admin/config', { method: 'PATCH', body: JSON.stringify({ clave, valor }) });
+    } catch (e) {
+      setConfig(p => ({ ...p, [clave]: !valor }));
+      setError(e.message);
+    }
+  }
 
   // Cargar ofertas cuando se abre el tab
   useEffect(() => {
@@ -38,6 +132,32 @@ export default function PanelAdmin({ usuario }) {
       .then(setOfertas)
       .catch(e => setError(e.message));
   }, [tab]);
+
+  // Cargar auditoría cuando se abre el tab
+  useEffect(() => {
+    if (tab !== 'auditoria') return;
+    setCargAuditoria(true);
+    const filtros = {};
+    if (filtroAuditoria !== 'todas') filtros.entidad = filtroAuditoria;
+    adminAPI.auditoria(filtros)
+      .then(setAuditoria)
+      .catch(e => setError(e.message))
+      .finally(() => setCargAuditoria(false));
+  }, [tab, filtroAuditoria]);
+
+  // Cargar solicitudes cuando se abre el tab
+  useEffect(() => {
+    if (tab !== 'solicitudes-perfil' && tab !== 'solicitudes-cv') return;
+    setCargSolicitudes(true);
+    const endpoint = tab === 'solicitudes-perfil' ? '/admin/solicitudes-perfil' : '/admin/solicitudes-cv';
+    fetchAPI(`${endpoint}?estado=${filtroSolicitud}`)
+      .then(data => {
+        if (tab === 'solicitudes-perfil') setSolicitudesPerfil(data);
+        else setSolicitudesCV(data);
+      })
+      .catch(e => setError(e.message))
+      .finally(() => setCargSolicitudes(false));
+  }, [tab, filtroSolicitud]);
 
   async function buscarUsuarios() {
     const params = {};
@@ -70,6 +190,40 @@ export default function PanelAdmin({ usuario }) {
     } catch(e) { setError(e.message); }
   }
 
+  async function aprobarPerfil(id) {
+    try {
+      await fetchAPI(`/admin/solicitudes-perfil/${id}/aprobar`, { method: 'PATCH' });
+      setSolicitudesPerfil(p => p.filter(s => s._id !== id));
+      setStatsSolicitudes(await cargarStatsSolicitudes());
+    } catch(e) { setError(e.message); }
+  }
+
+  async function aprobarCV(id) {
+    try {
+      await fetchAPI(`/admin/solicitudes-cv/${id}/aprobar`, { method: 'PATCH' });
+      setSolicitudesCV(p => p.filter(s => s._id !== id));
+      setStatsSolicitudes(await cargarStatsSolicitudes());
+    } catch(e) { setError(e.message); }
+  }
+
+  async function rechazarPerfil(id, motivo) {
+    try {
+      await fetchAPI(`/admin/solicitudes-perfil/${id}/rechazar`, { method: 'PATCH', body: JSON.stringify({ motivo }) });
+      setSolicitudesPerfil(p => p.filter(s => s._id !== id));
+      setRechazoModal(null);
+      setStatsSolicitudes(await cargarStatsSolicitudes());
+    } catch(e) { setError(e.message); }
+  }
+
+  async function rechazarCV(id, motivo) {
+    try {
+      await fetchAPI(`/admin/solicitudes-cv/${id}/rechazar`, { method: 'PATCH', body: JSON.stringify({ motivo }) });
+      setSolicitudesCV(p => p.filter(s => s._id !== id));
+      setRechazoModal(null);
+      setStatsSolicitudes(await cargarStatsSolicitudes());
+    } catch(e) { setError(e.message); }
+  }
+
   const usuariosFiltrados = usuarios
     .filter(u => filtroRol==='todos' || u.rol===filtroRol)
     .filter(u => !busq || u.nombre.toLowerCase().includes(busq.toLowerCase()) || u.email.toLowerCase().includes(busq.toLowerCase()));
@@ -91,11 +245,25 @@ export default function PanelAdmin({ usuario }) {
               Administrador
             </div>
             <h1 className="admin-titulo">Panel de administración</h1>
-            <p className="admin-sub">Bienvenido, {usuario?.nombre}. Gestiona usuarios y ofertas de la plataforma.</p>
+            <p className="admin-sub">Bienvenido, {usuario?.nombre}. Gestiona usuarios, ofertas y solicitudes de la plataforma.</p>
           </div>
         </div>
 
         {error && <div style={{padding:'10px 14px',background:'var(--rojo-light)',color:'var(--rojo)',borderRadius:'var(--radius-md)',marginBottom:16,fontSize:13}}>{error}</div>}
+
+        {/* Config toggles */}
+        <div className="admin-config-bar">
+          <ToggleSwitch
+            label="Aprobación automática de perfiles"
+            activo={config.aprobacionAutoPerfiles}
+            onChange={v => toggleConfig('aprobacion_auto_perfiles', v)}
+          />
+          <ToggleSwitch
+            label="Aprobación automática de CV"
+            activo={config.aprobacionAutoCV}
+            onChange={v => toggleConfig('aprobacion_auto_cv', v)}
+          />
+        </div>
 
         {stats && (
           <div className="admin-stats">
@@ -110,15 +278,245 @@ export default function PanelAdmin({ usuario }) {
                 <span className="admin-stat-l">{s.l}</span>
               </div>
             ))}
+            {statsSolicitudes && (
+              <div className="admin-stat-card" style={{borderLeft:'3px solid var(--naranja)'}}>
+                <span className="admin-stat-n" style={{color:'var(--naranja)'}}>{statsSolicitudes.perfilesPendientes + statsSolicitudes.cvsPendientes}</span>
+                <span className="admin-stat-l">Solicitudes pendientes</span>
+              </div>
+            )}
           </div>
         )}
 
         <div className="admin-tabs">
           {TABS.map(([id,lbl])=>(
-            <button key={id} className={`admin-tab ${tab===id?'active':''}`} onClick={()=>setTab(id)}>{lbl}</button>
+            <button key={id} className={`admin-tab ${tab===id?'active':''}`} onClick={()=>setTab(id)}>
+              {lbl}
+              {id === 'solicitudes-perfil' && statsSolicitudes?.perfilesPendientes > 0 && (
+                <span className="admin-tab-badge">{statsSolicitudes.perfilesPendientes}</span>
+              )}
+              {id === 'solicitudes-cv' && statsSolicitudes?.cvsPendientes > 0 && (
+                <span className="admin-tab-badge">{statsSolicitudes.cvsPendientes}</span>
+              )}
+            </button>
           ))}
         </div>
 
+        {/* DASHBOARD */}
+        {tab==='dashboard' && (
+          <div className="admin-seccion">
+            <div className="admin-dashboard-grid">
+              <div className="card admin-dash-card">
+                <h3>Solicitudes de perfil</h3>
+                <div className="admin-dash-stats">
+                  <div className="dash-stat pending">
+                    <span className="dash-stat-num">{statsSolicitudes?.perfilesPendientes ?? 0}</span>
+                    <span className="dash-stat-label">Pendientes</span>
+                  </div>
+                  <div className="dash-stat approved">
+                    <span className="dash-stat-num">{statsSolicitudes?.perfilesAprobados ?? 0}</span>
+                    <span className="dash-stat-label">Aprobadas</span>
+                  </div>
+                  <div className="dash-stat rejected">
+                    <span className="dash-stat-num">{statsSolicitudes?.perfilesRechazados ?? 0}</span>
+                    <span className="dash-stat-label">Rechazadas</span>
+                  </div>
+                </div>
+                <button className="btn-secondary btn-dash-ir" onClick={() => setTab('solicitudes-perfil')}>Ver solicitudes →</button>
+              </div>
+              <div className="card admin-dash-card">
+                <h3>Solicitudes de CV</h3>
+                <div className="admin-dash-stats">
+                  <div className="dash-stat pending">
+                    <span className="dash-stat-num">{statsSolicitudes?.cvsPendientes ?? 0}</span>
+                    <span className="dash-stat-label">Pendientes</span>
+                  </div>
+                  <div className="dash-stat approved">
+                    <span className="dash-stat-num">{statsSolicitudes?.cvsAprobados ?? 0}</span>
+                    <span className="dash-stat-label">Aprobados</span>
+                  </div>
+                  <div className="dash-stat rejected">
+                    <span className="dash-stat-num">{statsSolicitudes?.cvsRechazados ?? 0}</span>
+                    <span className="dash-stat-label">Rechazados</span>
+                  </div>
+                </div>
+                <button className="btn-secondary btn-dash-ir" onClick={() => setTab('solicitudes-cv')}>Ver solicitudes →</button>
+              </div>
+              <div className="card admin-dash-card">
+                <h3>Configuración rápida</h3>
+                <div className="admin-dash-config">
+                  <ToggleSwitch
+                    label="Auto-aprobar perfiles"
+                    activo={config.aprobacionAutoPerfiles}
+                    onChange={v => toggleConfig('aprobacion_auto_perfiles', v)}
+                  />
+                  <ToggleSwitch
+                    label="Auto-aprobar CV"
+                    activo={config.aprobacionAutoCV}
+                    onChange={v => toggleConfig('aprobacion_auto_cv', v)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* SOLICITUDES DE PERFIL */}
+        {tab==='solicitudes-perfil' && (
+          <div className="admin-seccion">
+            <div className="admin-toolbar">
+              <span style={{fontSize:13,color:'var(--gris-2)'}}>Filtrar por estado:</span>
+              <div className="admin-filter-chips">
+                {[['pendiente','Pendientes'],['aprobada','Aprobadas'],['rechazada','Rechazadas'],['todas','Todas']].map(([v,l])=>(
+                  <button key={v} className={`admin-chip ${filtroSolicitud===v?'on':''}`} onClick={()=>setFiltroSolicitud(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {cargSolicitudes && <EmptyState msg="Cargando solicitudes..." />}
+            {!cargSolicitudes && solicitudesPerfil.length === 0 && <EmptyState msg="No hay solicitudes de perfil." />}
+            {!cargSolicitudes && solicitudesPerfil.length > 0 && (
+              <div className="solicitudes-grid">
+                {solicitudesPerfil.map(s => (
+                  <div key={s._id} className={`solicitud-card card ${s.estado}`}>
+                    <div className="solicitud-header">
+                      <div className="solicitud-user">
+                        <div className="solicitud-avatar">{s.usuario_id?.nombre?.[0] ?? '?'}</div>
+                        <div>
+                          <p className="solicitud-nombre">{s.usuario_id?.nombre} {s.usuario_id?.apellido}</p>
+                          <p className="solicitud-email">{s.usuario_id?.email}</p>
+                        </div>
+                      </div>
+                      <span className={`badge ${s.estado==='pendiente'?'badge-naranja':s.estado==='aprobada'?'badge-verde':'badge-rojo'}`}>
+                        {s.estado === 'pendiente' ? 'Pendiente' : s.estado === 'aprobada' ? 'Aprobada' : 'Rechazada'}
+                      </span>
+                    </div>
+                    <div className="solicitud-body">
+                      <p className="solicitud-tipo">{s.tipo === 'creacion' ? '🆕 Creación de perfil' : '✏️ Modificación de perfil'} · <span className="solicitud-rol">{s.rol}</span></p>
+                      <div className="solicitud-datos">
+                        {Object.entries(s.datos_solicitados || {}).map(([k, v]) => (
+                          <div key={k} className="solicitud-dato">
+                            <span className="solicitud-dato-label">{k}:</span>
+                            <span className="solicitud-dato-val">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      {s.motivo_rechazo && (
+                        <p className="solicitud-motivo">Motivo: {s.motivo_rechazo}</p>
+                      )}
+                      <p className="solicitud-fecha">Solicitado el {new Date(s.creado_en).toLocaleDateString('es-CL')}</p>
+                    </div>
+                    {s.estado === 'pendiente' && (
+                      <div className="solicitud-acciones">
+                        <button className="btn-aprobar" onClick={() => aprobarPerfil(s._id)}>
+                          <IcoCheck /> Aprobar
+                        </button>
+                        <button className="btn-rechazar" onClick={() => setRechazoModal({ tipo: 'perfil', id: s._id })}>
+                          <IcoX /> Rechazar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SOLICITUDES DE CV */}
+        {tab==='solicitudes-cv' && (
+          <div className="admin-seccion">
+            <div className="admin-toolbar">
+              <span style={{fontSize:13,color:'var(--gris-2)'}}>Filtrar por estado:</span>
+              <div className="admin-filter-chips">
+                {[['pendiente','Pendientes'],['aprobada','Aprobadas'],['rechazada','Rechazadas'],['todas','Todas']].map(([v,l])=>(
+                  <button key={v} className={`admin-chip ${filtroSolicitud===v?'on':''}`} onClick={()=>setFiltroSolicitud(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {cargSolicitudes && <EmptyState msg="Cargando solicitudes..." />}
+            {!cargSolicitudes && solicitudesCV.length === 0 && <EmptyState msg="No hay solicitudes de CV." />}
+            {!cargSolicitudes && solicitudesCV.length > 0 && (
+              <div className="solicitudes-grid">
+                {solicitudesCV.map(s => (
+                  <div key={s._id} className={`solicitud-card card ${s.estado}`}>
+                    <div className="solicitud-header">
+                      <div className="solicitud-user">
+                        <div className="solicitud-avatar">{s.usuario_id?.nombre?.[0] ?? '?'}</div>
+                        <div>
+                          <p className="solicitud-nombre">{s.usuario_id?.nombre} {s.usuario_id?.apellido}</p>
+                          <p className="solicitud-email">{s.usuario_id?.email}</p>
+                        </div>
+                      </div>
+                      <span className={`badge ${s.estado==='pendiente'?'badge-naranja':s.estado==='aprobada'?'badge-verde':'badge-rojo'}`}>
+                        {s.estado === 'pendiente' ? 'Pendiente' : s.estado === 'aprobada' ? 'Aprobado' : 'Rechazado'}
+                      </span>
+                    </div>
+                    <div className="solicitud-body">
+                      <p className="solicitud-tipo">📄 Curriculum Vitae</p>
+                      {s.curriculum_url && (
+                        <a href={s.curriculum_url} target="_blank" rel="noopener noreferrer" className="solicitud-cv-link">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                          Ver CV
+                        </a>
+                      )}
+                      {s.motivo_rechazo && (
+                        <p className="solicitud-motivo">Motivo: {s.motivo_rechazo}</p>
+                      )}
+                      <p className="solicitud-fecha">Solicitado el {new Date(s.creado_en).toLocaleDateString('es-CL')}</p>
+                    </div>
+                    {s.estado === 'pendiente' && (
+                      <div className="solicitud-acciones">
+                        <button className="btn-aprobar" onClick={() => aprobarCV(s._id)}>
+                          <IcoCheck /> Aprobar
+                        </button>
+                        <button className="btn-rechazar" onClick={() => setRechazoModal({ tipo: 'cv', id: s._id })}>
+                          <IcoX /> Rechazar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* AUDITORÍA */}
+        {tab==='auditoria' && (
+          <div className="admin-seccion">
+            <div className="admin-toolbar">
+              <span style={{fontSize:13,color:'var(--gris-2)'}}>Filtrar por entidad:</span>
+              <div className="admin-filter-chips">
+                {[['todas','Todas'],['usuario','Usuarios'],['solicitud_perfil','Perfiles'],['solicitud_cv','CVs'],['config','Configuración']].map(([v,l])=>(
+                  <button key={v} className={`admin-chip ${filtroAuditoria===v?'on':''}`} onClick={()=>setFiltroAuditoria(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {cargAuditoria && <EmptyState msg="Cargando registros..." />}
+            {!cargAuditoria && auditoria.length === 0 && <EmptyState msg="No hay registros de auditoría." />}
+            {!cargAuditoria && auditoria.length > 0 && (
+              <div className="admin-tabla">
+                <div className="admin-tabla-header">
+                  <span>Fecha</span><span>Admin</span><span>Acción</span><span>Entidad</span><span>Detalles</span>
+                </div>
+                {auditoria.map(log => (
+                  <div key={log._id} className="admin-tabla-fila">
+                    <span className="admin-td-sm">{new Date(log.creado_en).toLocaleString('es-CL')}</span>
+                    <span className="admin-user-nombre" style={{fontSize:13}}>{log.admin_id?.nombre} {log.admin_id?.apellido}</span>
+                    <span className={`badge ${log.accion==='aprobar'||log.accion==='activar'?'badge-verde':log.accion==='rechazar'||log.accion==='eliminar'||log.accion==='desactivar'?'badge-rojo':'badge-azul'}`}>
+                      {log.accion.replace(/_/g, ' ')}
+                    </span>
+                    <span className="admin-td-sm">{log.entidad}</span>
+                    <span className="admin-td-sm" style={{maxWidth:300,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={JSON.stringify(log.detalles)}>
+                      {log.detalles?.usuario || log.detalles?.clave || log.entidad_id}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* USUARIOS */}
         {tab==='usuarios' && (
           <div className="admin-seccion">
             <div className="admin-toolbar">
@@ -168,6 +566,7 @@ export default function PanelAdmin({ usuario }) {
           </div>
         )}
 
+        {/* OFERTAS */}
         {tab==='ofertas' && (
           <div className="admin-seccion">
             {ofertas.length===0 ? <EmptyState msg="No hay ofertas publicadas aún."/> : (
@@ -193,6 +592,7 @@ export default function PanelAdmin({ usuario }) {
           </div>
         )}
 
+        {/* ESTADÍSTICAS */}
         {tab==='estadisticas' && stats && (
           <div className="admin-seccion">
             <div className="admin-stats-grid">
@@ -251,6 +651,16 @@ export default function PanelAdmin({ usuario }) {
           </div>
         )}
       </div>
+
+      {rechazoModal && (
+        <RechazoModal
+          onConfirm={(motivo) => {
+            if (rechazoModal.tipo === 'perfil') rechazarPerfil(rechazoModal.id, motivo);
+            else rechazarCV(rechazoModal.id, motivo);
+          }}
+          onCancel={() => setRechazoModal(null)}
+        />
+      )}
     </div>
   );
 }
