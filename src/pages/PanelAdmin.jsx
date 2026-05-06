@@ -23,25 +23,59 @@ function EmptyState({ msg }) {
 
 function ToggleSwitch({ activo, onChange, label }) {
   return (
-    <label className="toggle-switch-wrap">
+    <div className="toggle-switch-wrap" onClick={() => onChange(!activo)}>
       <span className="toggle-label">{label}</span>
-      <div className={`toggle-switch ${activo ? 'on' : ''}`} onClick={() => onChange(!activo)}>
+      <div className={`toggle-slider${activo ? ' on' : ''}`}>
         <div className="toggle-knob" />
       </div>
-    </label>
+    </div>
   );
 }
 
 function RechazoModal({ onConfirm, onCancel }) {
   const [motivo, setMotivo] = useState('');
+  const [mensaje, setMensaje] = useState('');
   return (
     <div className="rechazo-modal-overlay" onClick={onCancel}>
       <div className="rechazo-modal" onClick={e => e.stopPropagation()}>
         <h3>Motivo de rechazo</h3>
-        <textarea placeholder="Indica el motivo del rechazo..." value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} autoFocus />
+        <textarea placeholder="Indica el motivo del rechazo..." value={motivo} onChange={e => setMotivo(e.target.value)} rows={2} autoFocus />
+        <textarea placeholder="Mensaje adicional para el usuario (opcional)..." value={mensaje} onChange={e => setMensaje(e.target.value)} rows={2} style={{marginTop:8}} />
         <div className="rechazo-modal-btns">
           <button className="btn-secondary" onClick={onCancel}>Cancelar</button>
-          <button className="btn-primary" onClick={() => onConfirm(motivo)}>Rechazar</button>
+          <button className="btn-primary" onClick={() => onConfirm(motivo, mensaje)}>Rechazar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditarDatosModal({ solicitud, onConfirm, onCancel }) {
+  const [datos, setDatos] = useState({ ...(solicitud?.datos_solicitados || {}) });
+  const [mensaje, setMensaje] = useState('');
+  if (!solicitud) return null;
+  return (
+    <div className="rechazo-modal-overlay" onClick={onCancel}>
+      <div className="rechazo-modal editar-datos-modal" onClick={e => e.stopPropagation()}>
+        <h3>Editar datos solicitados</h3>
+        <p className="editar-datos-sub">Modifica los campos antes de aprobar. Los campos vacíos se eliminarán.</p>
+        <div className="editar-datos-campos">
+          {Object.entries(datos).map(([k, v]) => (
+            <div key={k} className="editar-datos-campo">
+              <label>{k.replace(/_/g, ' ')}</label>
+              {typeof v === 'object' && !Array.isArray(v)
+                ? <textarea value={JSON.stringify(v, null, 2)} onChange={e => { try { setDatos(p => ({...p, [k]: JSON.parse(e.target.value)})); } catch {} }} rows={3} />
+                : Array.isArray(v)
+                  ? <input value={v.join(', ')} onChange={e => setDatos(p => ({...p, [k]: e.target.value.split(',').map(x=>x.trim()).filter(Boolean)}))} />
+                  : <input value={v ?? ''} onChange={e => setDatos(p => ({...p, [k]: e.target.value}))} />
+              }
+            </div>
+          ))}
+        </div>
+        <textarea placeholder="Mensaje para el usuario (opcional)..." value={mensaje} onChange={e => setMensaje(e.target.value)} rows={2} style={{marginTop:12}} />
+        <div className="rechazo-modal-btns">
+          <button className="btn-secondary" onClick={onCancel}>Cancelar</button>
+          <button className="btn-primary" onClick={() => onConfirm(datos, mensaje)}>Aprobar con cambios</button>
         </div>
       </div>
     </div>
@@ -64,6 +98,8 @@ export default function PanelAdmin({ usuario }) {
   const [filtroSolicitud, setFiltroSolicitud] = useState('pendiente');
   const [cargSolicitudes, setCargSolicitudes] = useState(false);
   const [rechazoModal, setRechazoModal] = useState(null);
+  const [editarDatosModal, setEditarDatosModal] = useState(null);
+  const [mensajeModal, setMensajeModal] = useState(null);
 
   // Auditoría
   const [auditoria, setAuditoria] = useState([]);
@@ -71,7 +107,7 @@ export default function PanelAdmin({ usuario }) {
   const [filtroAuditoria, setFiltroAuditoria] = useState('todas');
 
   // Config
-  const [config, setConfig] = useState({ aprobacionAutoPerfiles: false, aprobacionAutoCV: false });
+  const [config, setConfig] = useState({ aprobacion_auto_perfiles: false, aprobacion_auto_cv: false });
 
   // Stats solicitudes
   const [statsSolicitudes, setStatsSolicitudes] = useState(null);
@@ -101,9 +137,12 @@ export default function PanelAdmin({ usuario }) {
   async function cargarConfig() {
     try {
       const data = await fetchAPI('/admin/config');
-      return data;
+      return {
+        aprobacion_auto_perfiles: data.aprobacionAutoPerfiles ?? false,
+        aprobacion_auto_cv: data.aprobacionAutoCV ?? false,
+      };
     } catch {
-      return { aprobacionAutoPerfiles: false, aprobacionAutoCV: false };
+      return { aprobacion_auto_perfiles: false, aprobacion_auto_cv: false };
     }
   }
 
@@ -190,9 +229,12 @@ export default function PanelAdmin({ usuario }) {
     } catch(e) { setError(e.message); }
   }
 
-  async function aprobarPerfil(id) {
+  async function aprobarPerfil(id, datosEditados, mensaje) {
     try {
-      await fetchAPI(`/admin/solicitudes-perfil/${id}/aprobar`, { method: 'PATCH' });
+      const body = {};
+      if (datosEditados) body.datos_editados = datosEditados;
+      if (mensaje) body.mensaje = mensaje;
+      await fetchAPI(`/admin/solicitudes-perfil/${id}/aprobar`, { method: 'PATCH', body: JSON.stringify(body) });
       setSolicitudesPerfil(p => p.filter(s => s._id !== id));
       setStatsSolicitudes(await cargarStatsSolicitudes());
     } catch(e) { setError(e.message); }
@@ -206,9 +248,11 @@ export default function PanelAdmin({ usuario }) {
     } catch(e) { setError(e.message); }
   }
 
-  async function rechazarPerfil(id, motivo) {
+  async function rechazarPerfil(id, motivo, mensaje) {
     try {
-      await fetchAPI(`/admin/solicitudes-perfil/${id}/rechazar`, { method: 'PATCH', body: JSON.stringify({ motivo }) });
+      const body = { motivo };
+      if (mensaje) body.mensaje = mensaje;
+      await fetchAPI(`/admin/solicitudes-perfil/${id}/rechazar`, { method: 'PATCH', body: JSON.stringify(body) });
       setSolicitudesPerfil(p => p.filter(s => s._id !== id));
       setRechazoModal(null);
       setStatsSolicitudes(await cargarStatsSolicitudes());
@@ -250,20 +294,6 @@ export default function PanelAdmin({ usuario }) {
         </div>
 
         {error && <div style={{padding:'10px 14px',background:'var(--rojo-light)',color:'var(--rojo)',borderRadius:'var(--radius-md)',marginBottom:16,fontSize:13}}>{error}</div>}
-
-        {/* Config toggles */}
-        <div className="admin-config-bar">
-          <ToggleSwitch
-            label="Aprobación automática de perfiles"
-            activo={config.aprobacionAutoPerfiles}
-            onChange={v => toggleConfig('aprobacion_auto_perfiles', v)}
-          />
-          <ToggleSwitch
-            label="Aprobación automática de CV"
-            activo={config.aprobacionAutoCV}
-            onChange={v => toggleConfig('aprobacion_auto_cv', v)}
-          />
-        </div>
 
         {stats && (
           <div className="admin-stats">
@@ -346,12 +376,12 @@ export default function PanelAdmin({ usuario }) {
                 <div className="admin-dash-config">
                   <ToggleSwitch
                     label="Auto-aprobar perfiles"
-                    activo={config.aprobacionAutoPerfiles}
+                    activo={config.aprobacion_auto_perfiles}
                     onChange={v => toggleConfig('aprobacion_auto_perfiles', v)}
                   />
                   <ToggleSwitch
                     label="Auto-aprobar CV"
-                    activo={config.aprobacionAutoCV}
+                    activo={config.aprobacion_auto_cv}
                     onChange={v => toggleConfig('aprobacion_auto_cv', v)}
                   />
                 </div>
@@ -408,6 +438,10 @@ export default function PanelAdmin({ usuario }) {
                       <div className="solicitud-acciones">
                         <button className="btn-aprobar" onClick={() => aprobarPerfil(s._id)}>
                           <IcoCheck /> Aprobar
+                        </button>
+                        <button className="btn-editar-datos" onClick={() => setEditarDatosModal({ tipo: 'perfil', id: s._id, solicitud: s })}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                          Editar y aprobar
                         </button>
                         <button className="btn-rechazar" onClick={() => setRechazoModal({ tipo: 'perfil', id: s._id })}>
                           <IcoX /> Rechazar
@@ -654,11 +688,22 @@ export default function PanelAdmin({ usuario }) {
 
       {rechazoModal && (
         <RechazoModal
-          onConfirm={(motivo) => {
-            if (rechazoModal.tipo === 'perfil') rechazarPerfil(rechazoModal.id, motivo);
+          onConfirm={(motivo, mensaje) => {
+            if (rechazoModal.tipo === 'perfil') rechazarPerfil(rechazoModal.id, motivo, mensaje);
             else rechazarCV(rechazoModal.id, motivo);
           }}
           onCancel={() => setRechazoModal(null)}
+        />
+      )}
+
+      {editarDatosModal && (
+        <EditarDatosModal
+          solicitud={editarDatosModal.solicitud}
+          onConfirm={(datosEditados, mensaje) => {
+            aprobarPerfil(editarDatosModal.id, datosEditados, mensaje);
+            setEditarDatosModal(null);
+          }}
+          onCancel={() => setEditarDatosModal(null)}
         />
       )}
     </div>

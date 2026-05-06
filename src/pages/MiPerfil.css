@@ -11,6 +11,39 @@
   align-items: flex-start;
 }
 .miperfil-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+.miperfil-aside { width: 300px; flex-shrink: 0; display: flex; flex-direction: column; gap: 16px; }
+
+.perfil-pendiente-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--naranja-light);
+  border: 1px solid var(--naranja);
+  border-radius: var(--radius-lg);
+  width: 100%;
+}
+.perfil-pendiente-banner-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--naranja);
+  margin: 0 0 4px 0;
+}
+.perfil-pendiente-banner-text {
+  font-size: 12.5px;
+  color: var(--texto-2);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.perfil-pendiente-aviso {
+  font-size: 12px;
+  color: var(--naranja);
+  background: var(--naranja-light);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  margin-top: 10px;
+}
 
 .miperfil-header-card { overflow: visible; padding: 0; }
 .miperfil-cover {
@@ -317,4 +350,9 @@
 .btn-mostrar-mas:hover {
   background: var(--azul-light);
   border-color: var(--azul);
+}
+
+@media(max-width:900px){
+  .miperfil-inner { flex-direction:column; }
+  .miperfil-aside { width:100%; }
 }

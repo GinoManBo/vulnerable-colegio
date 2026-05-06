@@ -46,6 +46,8 @@ export default function MiPerfil({ usuario }) {
   const [nuevaDestreza, setNuevaDestreza] = useState('');
   const [nuevoInteres, setNuevoInteres] = useState('');
   const [curriculum, setCurriculum] = useState(null);
+  const [perfilPendiente, setPerfilPendiente] = useState(false);
+  const [solicitudPendiente, setSolicitudPendiente] = useState(null);
 
   const promedioCalif = 0;
 
@@ -109,6 +111,7 @@ export default function MiPerfil({ usuario }) {
         setDestrezas(perfil.destrezas || []);
         setIntereses(perfil.intereses || []);
         setFotoPreview(perfil.foto_perfil_url || perfil.logo_url || null);
+        setPerfilPendiente(res.perfilPendiente || false);
         setLoading(false);
       })
       .catch(err => {
@@ -177,10 +180,13 @@ export default function MiPerfil({ usuario }) {
         };
 
     perfilAPI.actualizar(payload)
-      .then(() => {
+      .then((res) => {
         setDatos({ ...tmp });
         setEditando(false);
         setLoading(false);
+        if (res?.pendiente) {
+          setPerfilPendiente(true);
+        }
       })
       .catch(err => {
         setLoading(false);
@@ -209,6 +215,16 @@ export default function MiPerfil({ usuario }) {
       <div className="miperfil-inner">
 
         <div className="miperfil-main">
+
+          {perfilPendiente && (
+            <div className="perfil-pendiente-banner">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--naranja)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <div>
+                <p className="perfil-pendiente-banner-title">Perfil pendiente de verificación</p>
+                <p className="perfil-pendiente-banner-text">Tu perfil está siendo revisado por un administrador. Los cambios no serán visibles públicamente hasta que sea aprobado.</p>
+              </div>
+            </div>
+          )}
 
           <div className="card miperfil-header-card">
             <div className="miperfil-cover" />

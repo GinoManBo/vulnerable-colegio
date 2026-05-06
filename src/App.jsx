@@ -15,6 +15,7 @@ import MisPostulaciones from './pages/MisPostulaciones';
 import PerfilPublico from './pages/PerfilPublico';
 import Notificaciones from './pages/Notificaciones';
 import './index.css';
+import { authAPI } from './api';
 
 function RutaProtegida({ usuario, roles, children }) {
   if (!usuario) return <Navigate to="/acceso" replace />;
@@ -26,12 +27,27 @@ export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restaurar usuario del localStorage al cargar
+  // Restaurar usuario del localStorage al cargar y verificar con backend
   useEffect(() => {
     const usuarioGuardado = localStorage.getItem('usuario');
     if (usuarioGuardado) {
       try {
-        setUsuario(JSON.parse(usuarioGuardado));
+        const u = JSON.parse(usuarioGuardado);
+        // Verificar sesión con backend para obtener datos actualizados (perfilPendiente, etc.)
+        authAPI.verificar()
+          .then(res => {
+            if (res) {
+              const usuarioActualizado = { ...u, ...res };
+              setUsuario(usuarioActualizado);
+              localStorage.setItem('usuario', JSON.stringify(usuarioActualizado));
+            } else {
+              localStorage.removeItem('usuario');
+              localStorage.removeItem('token');
+            }
+          })
+          .catch(() => {
+            setUsuario(u);
+          });
       } catch (err) {
         // Silenciar error de parseo
       }
@@ -64,7 +80,7 @@ export default function App() {
         <Route path="/admin"         element={<RutaProtegida usuario={usuario} roles={['admin']}><PanelAdmin usuario={usuario} /></RutaProtegida>} />
         <Route path="/auditoria"     element={<RutaProtegida usuario={usuario} roles={['admin']}><Auditoria usuario={usuario} /></RutaProtegida>} />
         <Route path="/empresa"       element={<RutaProtegida usuario={usuario} roles={['empresa','admin']}><VistaEmpresa usuario={usuario} /></RutaProtegida>} />
-        <Route path="/perfil/:id"    element={<RutaProtegida usuario={usuario}><PerfilPublico /></RutaProtegida>} />
+        <Route path="/perfil/:id"    element={<RutaProtegida usuario={usuario}><PerfilPublico usuario={usuario} /></RutaProtegida>} />
         <Route path="/empresa/:id"   element={<RutaProtegida usuario={usuario}><div style={{padding:'40px 24px'}}>Perfil empresa</div></RutaProtegida>} />
         <Route path="/notificaciones"element={<RutaProtegida usuario={usuario}><Notificaciones usuario={usuario} /></RutaProtegida>} />
         <Route path="/explorar"      element={<RutaProtegida usuario={usuario}><div style={{padding:'40px 24px'}}>Explorar</div></RutaProtegida>} />

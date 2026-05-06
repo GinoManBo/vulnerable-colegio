@@ -331,22 +331,24 @@ export default function JobCard({
             </span>
 
             {usuario?.rol === 'estudiante' && (
-              (yaPostulado || postuladoLocal) ? (
-                <div className="btn-postulado" title="Ya postulaste a esta oferta">
-                  <IcoCheck />
-                  Postulado
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="btn-postular"
-                  onClick={handlePostular}
-                  disabled={cargando}
-                  title="Postularse a esta oferta"
-                >
-                  {cargando ? '...' : 'Postular'}
-                </button>
-              )
+              usuario?.perfilPendiente
+                ? <div className="btn-postulado btn-pendiente" title="Tu perfil está pendiente de verificación">Pendiente</div>
+                : (yaPostulado || postuladoLocal) ? (
+                  <div className="btn-postulado" title="Ya postulaste a esta oferta">
+                    <IcoCheck />
+                    Postulado
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-postular"
+                    onClick={handlePostular}
+                    disabled={cargando}
+                    title="Postularse a esta oferta"
+                  >
+                    {cargando ? '...' : 'Postular'}
+                  </button>
+                )
             )}
           </div>
         </div>

@@ -120,6 +120,7 @@ export default function DetalleOferta({ usuario }) {
 
   const esEmpresa = usuario?.rol === 'empresa';
   const esAdmin   = usuario?.rol === 'admin';
+  const perfilPendiente = usuario?.perfilPendiente;
 
   if (cargando) return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'60vh'}}>
@@ -197,10 +198,12 @@ export default function DetalleOferta({ usuario }) {
                         </button>
                       </>
                     )
-                    : <button className={`btn-verde dof-postular-btn ${postulando?'loading':''}`} disabled={postulando||!oferta.activo} onClick={postular}>
+                    : <button className={`btn-verde dof-postular-btn ${postulando?'loading':''}`} disabled={postulando||!oferta.activo||perfilPendiente} onClick={postular} title={perfilPendiente?'Tu perfil está pendiente de verificación':''}>
                         {postulando
                           ? <><span className="spinner" style={{width:14,height:14,border:'2px solid rgba(255,255,255,.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>Enviando...</>
-                          : oferta.activo ? 'Postularme' : 'Oferta cerrada'
+                          : perfilPendiente
+                            ? <>Perfil pendiente de verificación</>
+                            : oferta.activo ? 'Postularme' : 'Oferta cerrada'
                         }
                       </button>
                 )}

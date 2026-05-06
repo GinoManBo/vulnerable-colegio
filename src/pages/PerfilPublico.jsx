@@ -3,7 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { perfilAPI, mensajesAPI } from '../api';
 import './MiPerfil.css';
 
-export default function PerfilPublico() {
+export default function PerfilPublico({ usuario }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [datos, setDatos] = useState(null);
@@ -11,12 +11,14 @@ export default function PerfilPublico() {
   const [error, setError] = useState('');
   const [ofertasActivas, setOfertasActivas] = useState([]);
   const [enviandoMsg, setEnviandoMsg] = useState(false);
+  const [verificado, setVerificado] = useState(true);
 
   useEffect(() => {
     async function cargarPerfil() {
       try {
         const res = await perfilAPI.obtener(id);
         const perfil = res.perfil || {};
+        setVerificado(res.verificado ?? true);
         setDatos({
           nombre: res.nombre || '',
           apellido: res.apellido || '',
@@ -122,18 +124,27 @@ export default function PerfilPublico() {
                 <div className="miperfil-nombre-wrap">
                   <h1 className="miperfil-nombre">{esEmpresa ? datos.nombre_empresa : `${datos.nombre} ${datos.apellido}`}</h1>
                   <span className="badge badge-verde">{esEmpresa ? 'Empresa' : 'Estudiante'}</span>
+                  {verificado
+                    ? <span className="badge badge-verif"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>Verificado</span>
+                    : <span className="badge badge-pendiente"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>No verificado</span>
+                  }
                 </div>
                 <p className="miperfil-especialidad">{esEmpresa ? (datos.rubro || datos.nombre_empresa) : datos.especialidad}</p>
                 <div className="miperfil-meta">
                   {datos.ciudad && <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>{datos.ciudad}</span>}
                   {datos.email && <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>{datos.email}</span>}
                 </div>
-                <button className="btn-mensaje" onClick={enviarMensaje} disabled={enviandoMsg}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  {enviandoMsg ? 'Abriendo chat...' : 'Enviar mensaje'}
-                </button>
+                {verificado && (
+                  <button className="btn-mensaje" onClick={enviarMensaje} disabled={enviandoMsg}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    {enviandoMsg ? 'Abriendo chat...' : 'Enviar mensaje'}
+                  </button>
+                )}
+                {!verificado && (
+                  <p className="perfil-pendiente-aviso">Este perfil está pendiente de verificación.</p>
+                )}
               </div>
             </div>
           </div>
@@ -240,26 +251,28 @@ export default function PerfilPublico() {
               )}
             </div>
           </div>
-          <div className="card aside-card">
-            <h3 className="aside-title">Completitud del perfil</h3>
-            <div className="completitud-wrap">
-              <div className="completitud-bar-bg">
-                <div className="completitud-bar-fill" style={{ width: `${completitudPct}%` }} />
+          {datos.usuario_id === usuario?._id && (
+            <div className="card aside-card">
+              <h3 className="aside-title">Completitud del perfil</h3>
+              <div className="completitud-wrap">
+                <div className="completitud-bar-bg">
+                  <div className="completitud-bar-fill" style={{ width: `${completitudPct}%` }} />
+                </div>
+                <span className="completitud-pct">{completitudPct}%</span>
               </div>
-              <span className="completitud-pct">{completitudPct}%</span>
+              <ul className="completitud-items">
+                {itemsCompletitud.map(i => (
+                  <li key={i.label} className={`compl-item ${i.done ? 'done' : ''}`}>
+                    {i.done
+                      ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--verde)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/></svg>
+                    }
+                    {i.label}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <ul className="completitud-items">
-              {itemsCompletitud.map(i => (
-                <li key={i.label} className={`compl-item ${i.done ? 'done' : ''}`}>
-                  {i.done
-                    ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--verde)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/></svg>
-                  }
-                  {i.label}
-                </li>
-              ))}
-            </ul>
-          </div>
+          )}
         </aside>
       </div>
     </div>

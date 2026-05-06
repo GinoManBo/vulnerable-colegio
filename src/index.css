@@ -57,6 +57,8 @@ input, textarea, select { font-family: var(--font-body); }
 .badge-naranja{ background: var(--naranja-light);  color: #B45309; }
 .badge-rojo   { background: var(--rojo-light);     color: #991B1B; }
 .badge-gris   { background: #EEF0F3; color: var(--gris-2); }
+.badge-verif  { background: #D4F5E8; color: #0D6E47; }
+.badge-pendiente { background: #FFF3CD; color: #856404; }
 
 .btn-primary {
   display: inline-flex;

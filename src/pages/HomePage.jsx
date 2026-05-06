@@ -27,18 +27,8 @@ export default function HomePage() {
   useEffect(() => {
     async function cargarDatos() {
       try {
-        const [datosOfertas, postulaciones] = await Promise.all([
-          ofertasAPI.listar(),
-          usuario?.rol === 'estudiante' ? perfilAPI.misPostulaciones() : Promise.resolve([]),
-        ]);
-        // El endpoint retorna { ofertas, total, paginas }
+        const datosOfertas = await ofertasAPI.listar();
         setOfertas(datosOfertas.ofertas || datosOfertas || []);
-
-        // Guardar IDs de ofertas ya postuladas
-        const postuladosIds = new Set(
-          (postulaciones || []).map(p => p.empleo_id?._id?.toString() || p.empleo_id?.toString())
-        );
-        setMisPostulacionesIds(postuladosIds);
       } catch (err) {
         setOfertas([]);
       } finally {
@@ -47,6 +37,18 @@ export default function HomePage() {
     }
     cargarDatos();
   }, []);
+
+  useEffect(() => {
+    if (usuario?.rol !== 'estudiante') return;
+    perfilAPI.misPostulaciones()
+      .then(postulaciones => {
+        const postuladosIds = new Set(
+          (postulaciones || []).map(p => p.empleo_id?._id?.toString() || p.empleo_id?.toString())
+        );
+        setMisPostulacionesIds(postuladosIds);
+      })
+      .catch(() => {});
+  }, [usuario]);
 
   // Escuchar evento para recargar postulaciones (ej. después de retirar)
   useEffect(() => {

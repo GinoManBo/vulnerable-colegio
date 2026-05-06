@@ -179,3 +179,8 @@
   cursor: default;
   user-select: none;
 }
+
+.btn-pendiente {
+  background: linear-gradient(135deg, var(--naranja) 0%, #B45309 100%);
+  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15);
+}
