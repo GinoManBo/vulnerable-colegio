@@ -169,6 +169,13 @@ app.post('/api/auth/login', async (req, res) => {
     else if (usuario.rol === 'estudiante')
       perfil = await PerfilEstudiante.findOne({ usuario_id: usuario._id }).select('foto_perfil_url especialidad');
 
+    // Verificar si tiene solicitud pendiente
+    let perfilPendiente = false;
+    if (usuario.rol !== 'admin') {
+      const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: usuario._id, estado: 'pendiente' });
+      perfilPendiente = !!solicitudPendiente;
+    }
+
     res.json({
       token: generarToken(usuario._id),
       usuario: {
@@ -176,6 +183,7 @@ app.post('/api/auth/login', async (req, res) => {
         email: usuario.email, rol: usuario.rol,
         foto:          perfil?.foto_perfil_url ?? perfil?.logo_url ?? null,
         nombre_empresa:perfil?.nombre_empresa ?? null,
+        perfilPendiente,
       },
     });
   } catch (err) {
@@ -193,12 +201,20 @@ app.get('/api/auth/me', auth, async (req, res) => {
     else if (u.rol === 'estudiante')
       perfil = await PerfilEstudiante.findOne({ usuario_id: u._id }).select('foto_perfil_url especialidad ciudad');
 
+    // Verificar si tiene solicitud pendiente
+    let perfilPendiente = false;
+    if (u.rol !== 'admin') {
+      const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: u._id, estado: 'pendiente' });
+      perfilPendiente = !!solicitudPendiente;
+    }
+
     res.json({
       _id: u._id, nombre: u.nombre, apellido: u.apellido,
       email: u.email, rol: u.rol,
       foto:          perfil?.foto_perfil_url ?? perfil?.logo_url ?? null,
       nombre_empresa:perfil?.nombre_empresa ?? null,
       ciudad:        perfil?.ciudad ?? null,
+      perfilPendiente,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -216,7 +232,15 @@ app.get('/api/perfil/me', auth, async (req, res) => {
       perfil = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
     else if (req.usuario.rol === 'empresa')
       perfil = await PerfilEmpresa.findOne({ usuario_id: req.usuario._id });
-    res.json({ ...req.usuario.toObject(), perfil });
+
+    // Verificar si tiene solicitud pendiente
+    let perfilPendiente = false;
+    if (req.usuario.rol !== 'admin') {
+      const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'pendiente' });
+      perfilPendiente = !!solicitudPendiente;
+    }
+
+    res.json({ ...req.usuario.toObject(), perfil, perfilPendiente });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -225,37 +249,93 @@ app.get('/api/perfil/me', auth, async (req, res) => {
 app.put('/api/perfil', auth, async (req, res) => {
   try {
     const { nombre, apellido, descripcion, especialidad, ciudad, telefono, linkedin, intereses, destrezas, nombre_empresa, rubro, sitio_web, region } = req.body;
-    
-    // Actualizar usuario
-    if (nombre || apellido) {
-      await User.findByIdAndUpdate(req.usuario._id, { 
-        ...(nombre && { nombre }), 
-        ...(apellido && { apellido }) 
+
+    // Verificar si el usuario ya tiene un perfil aprobado (verificado)
+    const solicitudAprobada = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'aprobada' });
+    const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'pendiente' });
+
+    // Si ya está verificado y no tiene solicitud pendiente → crear solicitud de modificación
+    if (solicitudAprobada && !solicitudPendiente) {
+      const datosSolicitados = req.usuario.rol === 'estudiante'
+        ? { descripcion, especialidad, ciudad, telefono, linkedin, intereses: intereses ? JSON.parse(intereses) : undefined, destrezas: destrezas ? JSON.parse(destrezas) : undefined }
+        : { nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region };
+
+      // Limpiar undefined
+      Object.keys(datosSolicitados).forEach(k => datosSolicitados[k] === undefined && delete datosSolicitados[k]);
+
+      const solicitud = await SolicitudPerfil.create({
+        usuario_id: req.usuario._id,
+        tipo: 'modificacion',
+        rol: req.usuario.rol,
+        datos_solicitados: datosSolicitados,
+        estado: 'pendiente',
       });
+
+      // Actualizar nombre/apellido directamente (siempre permitido)
+      if (nombre || apellido) {
+        await User.findByIdAndUpdate(req.usuario._id, {
+          ...(nombre && { nombre }),
+          ...(apellido && { apellido }),
+        });
+      }
+
+      // Notificar al usuario
+      await Notificacion.create({
+        usuario_id: req.usuario._id,
+        tipo: 'otra',
+        titulo: 'Modificación enviada',
+        texto: 'Tu solicitud de modificación de perfil ha sido enviada al administrador. Los cambios se aplicarán tras la revisión.',
+        link: '/perfil',
+      });
+
+      // Notificar al admin
+      const admins = await User.find({ rol: 'admin' }).select('_id');
+      for (const admin of admins) {
+        await Notificacion.create({
+          usuario_id: admin._id,
+          tipo: 'otra',
+          titulo: 'Nueva modificación de perfil',
+          texto: `${req.usuario.nombre} ${req.usuario.apellido} solicitó cambios en su perfil.`,
+          link: '/admin',
+        });
+      }
+
+      return res.json({ ok: true, solicitud, pendiente: true });
     }
 
-    let perfil;
-    
-    // Actualizar según rol
-    if (req.usuario.rol === 'estudiante') {
-      perfil = await PerfilEstudiante.findOneAndUpdate(
-        { usuario_id: req.usuario._id },
-        {
-          descripcion, especialidad, ciudad, telefono, linkedin,
-          ...(intereses && { intereses: JSON.parse(intereses) }),
-          ...(destrezas && { destrezas: JSON.parse(destrezas) }),
-        },
-        { returnDocument: 'after', upsert: true }
-      );
-    } else if (req.usuario.rol === 'empresa') {
-      perfil = await PerfilEmpresa.findOneAndUpdate(
-        { usuario_id: req.usuario._id },
-        { nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region },
-        { returnDocument: 'after', upsert: true }
-      );
+    // Si no está verificado → crear solicitud de creación (comportamiento actual)
+    if (!solicitudAprobada && !solicitudPendiente) {
+      const datosSolicitados = req.usuario.rol === 'estudiante'
+        ? { descripcion, especialidad, ciudad, telefono, linkedin, intereses: intereses ? JSON.parse(intereses) : undefined, destrezas: destrezas ? JSON.parse(destrezas) : undefined }
+        : { nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region };
+
+      Object.keys(datosSolicitados).forEach(k => datosSolicitados[k] === undefined && delete datosSolicitados[k]);
+
+      await SolicitudPerfil.create({
+        usuario_id: req.usuario._id,
+        tipo: 'creacion',
+        rol: req.usuario.rol,
+        datos_solicitados: datosSolicitados,
+        estado: 'pendiente',
+      });
+
+      if (nombre || apellido) {
+        await User.findByIdAndUpdate(req.usuario._id, {
+          ...(nombre && { nombre }),
+          ...(apellido && { apellido }),
+        });
+      }
+
+      return res.json({ ok: true, pendiente: true });
     }
-    
-    res.json(perfil);
+
+    // Si ya tiene solicitud pendiente → no permitir otra
+    if (solicitudPendiente) {
+      return res.status(409).json({ error: 'Ya tienes una solicitud de perfil pendiente de revisión.' });
+    }
+
+    // Fallback (no debería llegar aquí)
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -314,6 +394,14 @@ app.get('/api/perfil/usuario/:usuarioId', auth, async (req, res) => {
         .select('nombre_empresa logo_url descripcion rubro sitio_web telefono ciudad region');
     }
 
+    // Verificar estado de verificación del perfil
+    let verificado = true;
+    if (usuario.rol !== 'admin') {
+      const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: usuario._id, estado: 'pendiente' });
+      const solicitudAprobada = await SolicitudPerfil.findOne({ usuario_id: usuario._id, estado: 'aprobada' });
+      verificado = !solicitudPendiente && !!solicitudAprobada;
+    }
+
     res.json({
       _id: usuario._id,
       nombre: usuario.nombre,
@@ -321,6 +409,7 @@ app.get('/api/perfil/usuario/:usuarioId', auth, async (req, res) => {
       email: usuario.email,
       rol: usuario.rol,
       perfil,
+      verificado,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -608,6 +697,10 @@ app.post('/api/ofertas/:id/postular', auth, soloRoles('estudiante'), async (req,
     const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
     if (!perfilEstudiante) return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
 
+    // Verificar si el perfil está pendiente de aprobación
+    const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'pendiente' });
+    if (solicitudPendiente) return res.status(403).json({ error: 'Tu perfil aún está pendiente de aprobación. No puedes postularte hasta que sea verificado.' });
+
     const ya = await Postulacion.findOne({ empleo_id: oferta._id, estudiante_id: perfilEstudiante._id });
     if (ya) return res.status(409).json({ error: 'Ya postulaste a esta oferta' });
 
@@ -713,9 +806,32 @@ app.delete('/api/preguntas/:id', auth, soloRoles('admin'), async (req, res) => {
 
 app.get('/api/mensajes', auth, async (req, res) => {
   try {
-    const convs = await Conversacion.find({ participantes: req.usuario._id })
+    let convs = await Conversacion.find({ participantes: req.usuario._id })
       .populate('participantes', 'nombre apellido rol')
       .sort({ ultimo_mensaje_en: -1 });
+
+    // Si no tiene conversaciones, crear una con el admin automáticamente
+    if (convs.length === 0 && req.usuario.rol !== 'admin') {
+      const adminUser = await User.findOne({ rol: 'admin', activo: true }).select('_id');
+      if (adminUser) {
+        const existe = await Conversacion.findOne({
+          participantes: { $all: [req.usuario._id, adminUser._id], $size: 2 },
+        });
+        if (!existe) {
+          const nuevaConv = await Conversacion.create({ participantes: [req.usuario._id, adminUser._id], ultimo_mensaje_en: new Date() });
+          // Enviar mensaje de bienvenida del admin
+          await Mensaje.create({
+            conversacion_id: nuevaConv._id,
+            remitente_id: adminUser._id,
+            contenido: '¡Hola! Si tienes alguna duda o necesitas ayuda con la plataforma, no dudes en escribirme.',
+            enviado_en: new Date(),
+          });
+        }
+        convs = await Conversacion.find({ participantes: req.usuario._id })
+          .populate('participantes', 'nombre apellido rol')
+          .sort({ ultimo_mensaje_en: -1 });
+      }
+    }
 
     const resultado = await Promise.all(convs.map(async c => {
       const noLeidos = await Mensaje.countDocuments({
@@ -756,8 +872,20 @@ app.post('/api/mensajes/conversacion', auth, async (req, res) => {
     const { destinatario_id } = req.body;
     if (!destinatario_id) return res.status(400).json({ error: 'destinatario_id requerido' });
 
+    // Verificar si el remitente tiene perfil pendiente (excepto admin)
+    if (req.usuario.rol !== 'admin') {
+      const solicitudSender = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'pendiente' });
+      if (solicitudSender) return res.status(403).json({ error: 'Tu perfil aún está pendiente de aprobación. No puedes enviar mensajes hasta que sea verificado.' });
+    }
+
     const dest = await User.findById(destinatario_id);
     if (!dest || !dest.activo) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Verificar si el destinatario tiene perfil pendiente (excepto admin)
+    if (dest.rol !== 'admin') {
+      const solicitudDest = await SolicitudPerfil.findOne({ usuario_id: destinatario_id, estado: 'pendiente' });
+      if (solicitudDest) return res.status(403).json({ error: 'Este usuario tiene su perfil pendiente de aprobación.' });
+    }
 
     let conv = await Conversacion.findOne({
       participantes: { $all: [req.usuario._id, destinatario_id], $size: 2 },
@@ -1008,27 +1136,67 @@ app.get('/api/admin/solicitudes-perfil', auth, soloRoles('admin'), async (req, r
   }
 });
 
-app.patch('/api/admin/solicitudes-perfil/:id/aprobar', auth, soloRoles('admin'), async (req, res) => {
+app.patch('/api/admin/solicitudes-perfil/:id/editar-datos', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const { datos } = req.body;
+    if (!datos) return res.status(400).json({ error: 'Datos requeridos' });
+
+    const solicitud = await SolicitudPerfil.findById(req.params.id);
+    if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+    if (solicitud.estado !== 'pendiente') return res.status(400).json({ error: 'Solo se pueden editar solicitudes pendientes' });
+
+    solicitud.datos_solicitados = datos;
+    await solicitud.save();
+
+    res.json({ ok: true, solicitud });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/solicitudes-perfil/:id/perfil-actual', auth, soloRoles('admin'), async (req, res) => {
   try {
     const solicitud = await SolicitudPerfil.findById(req.params.id).populate('usuario_id');
     if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    let perfilActual = null;
+    if (solicitud.rol === 'estudiante') {
+      perfilActual = await PerfilEstudiante.findOne({ usuario_id: solicitud.usuario_id._id });
+    } else if (solicitud.rol === 'empresa') {
+      perfilActual = await PerfilEmpresa.findOne({ usuario_id: solicitud.usuario_id._id });
+    }
+
+    res.json({ perfilActual, datosSolicitados: solicitud.datos_solicitados });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/solicitudes-perfil/:id/aprobar', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const { mensaje, datos_editados } = req.body;
+    const solicitud = await SolicitudPerfil.findById(req.params.id).populate('usuario_id');
+    if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
+
+    // Usar datos editados por el admin si los proporcionó, sino usar los originales
+    const datosFinales = datos_editados || solicitud.datos_solicitados;
 
     solicitud.estado = 'aprobada';
     solicitud.revisado_por = req.usuario._id;
     solicitud.revisado_en = new Date();
     await solicitud.save();
 
-    // Crear o actualizar el perfil del usuario
+    // Crear o actualizar el perfil del usuario con los datos (editados o originales)
     if (solicitud.rol === 'estudiante') {
       await PerfilEstudiante.findOneAndUpdate(
         { usuario_id: solicitud.usuario_id._id },
-        { ...solicitud.datos_solicitados, usuario_id: solicitud.usuario_id._id },
+        { ...datosFinales, usuario_id: solicitud.usuario_id._id },
         { upsert: true, new: true }
       );
     } else if (solicitud.rol === 'empresa') {
       await PerfilEmpresa.findOneAndUpdate(
         { usuario_id: solicitud.usuario_id._id },
-        { ...solicitud.datos_solicitados, usuario_id: solicitud.usuario_id._id },
+        { ...datosFinales, usuario_id: solicitud.usuario_id._id },
         { upsert: true, new: true }
       );
     }
@@ -1043,15 +1211,24 @@ app.patch('/api/admin/solicitudes-perfil/:id/aprobar', auth, soloRoles('admin'),
         usuario: `${solicitud.usuario_id?.nombre} ${solicitud.usuario_id?.apellido}`,
         tipo: solicitud.tipo,
         rol: solicitud.rol,
+        datos_editados: datos_editados ? true : false,
       },
     });
 
     // Notificar al usuario
+    let textoNotif;
+    if (datos_editados) {
+      textoNotif = `Tu solicitud de ${solicitud.tipo === 'creacion' ? 'creación' : 'modificación'} de perfil ha sido aprobada con ajustes por el administrador.`;
+    } else {
+      textoNotif = `Tu solicitud de ${solicitud.tipo === 'creacion' ? 'creación' : 'modificación'} de perfil ha sido aprobada. Ya puedes acceder a todas las funcionalidades.`;
+    }
+    if (mensaje) textoNotif += ` Mensaje del admin: ${mensaje}`;
+
     await Notificacion.create({
       usuario_id: solicitud.usuario_id._id,
       tipo: 'otra',
-      titulo: 'Perfil aprobado',
-      texto: `Tu solicitud de ${solicitud.tipo === 'creacion' ? 'creación' : 'modificación'} de perfil ha sido aprobada. Ya puedes acceder a todas las funcionalidades.`,
+      titulo: datos_editados ? 'Perfil aprobado con ajustes' : 'Perfil aprobado',
+      texto: textoNotif,
       link: solicitud.rol === 'estudiante' ? '/' : '/empresa',
     });
 
@@ -1063,7 +1240,7 @@ app.patch('/api/admin/solicitudes-perfil/:id/aprobar', auth, soloRoles('admin'),
 
 app.patch('/api/admin/solicitudes-perfil/:id/rechazar', auth, soloRoles('admin'), async (req, res) => {
   try {
-    const { motivo } = req.body;
+    const { motivo, mensaje } = req.body;
     const solicitud = await SolicitudPerfil.findById(req.params.id).populate('usuario_id');
     if (!solicitud) return res.status(404).json({ error: 'Solicitud no encontrada' });
 
@@ -1088,11 +1265,14 @@ app.patch('/api/admin/solicitudes-perfil/:id/rechazar', auth, soloRoles('admin')
     });
 
     // Notificar al usuario
+    let textoNotif = `Tu solicitud de ${solicitud.tipo === 'creacion' ? 'creación' : 'modificación'} de perfil ha sido rechazada. Motivo: ${solicitud.motivo_rechazo}`;
+    if (mensaje) textoNotif += ` — ${mensaje}`;
+
     await Notificacion.create({
       usuario_id: solicitud.usuario_id._id,
       tipo: 'otra',
       titulo: 'Perfil rechazado',
-      texto: `Tu solicitud de ${solicitud.tipo === 'creacion' ? 'creación' : 'modificación'} de perfil ha sido rechazada. Motivo: ${solicitud.motivo_rechazo}`,
+      texto: textoNotif,
       link: '/perfil',
     });
 
@@ -1309,32 +1489,73 @@ app.get('/api/buscar', auth, async (req, res) => {
     const termino = q.trim();
     const regex = new RegExp(termino, 'i');
 
-    // Buscar empresas
-    const empresas = await PerfilEmpresa.find({
-      $or: [
-        { nombre_empresa: regex },
-        { rubro: regex },
-        { ciudad: regex },
-      ]
-    }).select('nombre_empresa rubro ciudad logo_url usuario_id').limit(10);
+    // Obtener IDs de usuarios con solicitudes pendientes
+    const solicitudesPendientes = await SolicitudPerfil.find({ estado: 'pendiente' }).distinct('usuario_id');
+    const pendientesIds = new Set(solicitudesPendientes.map(id => id.toString()));
 
-    // Buscar estudiantes
-    const estudiantes = await PerfilEstudiante.find({
+    // 1) Buscar usuarios por nombre/email
+    const usuariosEncontrados = await User.find({
+      $or: [
+        { nombre: regex },
+        { apellido: regex },
+        { email: regex },
+      ],
+      rol: { $in: ['estudiante', 'empresa'] },
+      activo: true,
+    }).select('_id nombre apellido rol').limit(30);
+
+    // 2) Buscar perfiles de estudiantes por campos de perfil
+    const estudiantesPorPerfil = await PerfilEstudiante.find({
       $or: [
         { descripcion: regex },
         { especialidad: regex },
         { ciudad: regex },
       ]
-    }).select('foto_perfil_url especialidad ciudad descripcion usuario_id').limit(10);
+    }).select('usuario_id').limit(30);
+    const estudiantePerfilIds = estudiantesPorPerfil.map(e => e.usuario_id?.toString()).filter(Boolean);
 
-    // Obtener datos de usuario para los estudiantes
-    const usuarioIds = estudiantes.map(e => e.usuario_id).filter(Boolean);
-    const usuariosData = await User.find({ _id: { $in: usuarioIds } }).select('nombre apellido email');
-    const usuarioMap = {};
-    usuariosData.forEach(u => { usuarioMap[u._id.toString()] = u; });
+    // 3) Buscar perfiles de empresas por campos de perfil
+    const empresasPorPerfil = await PerfilEmpresa.find({
+      $or: [
+        { nombre_empresa: regex },
+        { rubro: regex },
+        { ciudad: regex },
+      ]
+    }).select('usuario_id').limit(30);
+    const empresaPerfilIds = empresasPorPerfil.map(e => e.usuario_id?.toString()).filter(Boolean);
+
+    // Combinar todos los IDs de estudiantes y empresas
+    const todosEstudianteIds = new Set([
+      ...usuariosEncontrados.filter(u => u.rol === 'estudiante').map(u => u._id.toString()),
+      ...estudiantePerfilIds,
+    ]);
+    const todosEmpresaIds = new Set([
+      ...usuariosEncontrados.filter(u => u.rol === 'empresa').map(u => u._id.toString()),
+      ...empresaPerfilIds,
+    ]);
+
+    // Filtrar pendientes
+    const estudianteIdsFinales = [...todosEstudianteIds].filter(id => !pendientesIds.has(id));
+    const empresaIdsFinales = [...todosEmpresaIds].filter(id => !pendientesIds.has(id));
+
+    // Obtener perfiles de estudiantes
+    const estudiantes = await PerfilEstudiante.find({
+      usuario_id: { $in: estudianteIdsFinales },
+    }).select('foto_perfil_url especialidad ciudad descripcion usuario_id');
+
+    // Obtener perfiles de empresas
+    const empresas = await PerfilEmpresa.find({
+      usuario_id: { $in: empresaIdsFinales },
+    }).select('nombre_empresa logo_url rubro ciudad usuario_id');
+
+    // Obtener datos de usuario para estudiantes
+    const estudianteUsuarioIds = estudiantes.map(e => e.usuario_id).filter(Boolean);
+    const estudiantesUsuariosData = await User.find({ _id: { $in: estudianteUsuarioIds } }).select('nombre apellido email');
+    const estudianteUsuarioMap = {};
+    estudiantesUsuariosData.forEach(u => { estudianteUsuarioMap[u._id.toString()] = u; });
 
     const resultadosUsuarios = estudiantes.map(e => {
-      const u = usuarioMap[e.usuario_id?.toString()];
+      const u = estudianteUsuarioMap[e.usuario_id?.toString()];
       return {
         id: e.usuario_id,
         nombre: u ? `${u.nombre} ${u.apellido}` : 'Estudiante',
@@ -1344,7 +1565,7 @@ app.get('/api/buscar', auth, async (req, res) => {
       };
     });
 
-    // Obtener datos de usuario para las empresas
+    // Obtener datos de usuario para empresas
     const empresaUsuarioIds = empresas.map(e => e.usuario_id).filter(Boolean);
     const empresaUsuariosData = await User.find({ _id: { $in: empresaUsuarioIds } }).select('nombre apellido email');
     const empresaUsuarioMap = {};
