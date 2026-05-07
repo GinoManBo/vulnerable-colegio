@@ -40,6 +40,14 @@
 .auditoria-admin-email { font-size:11px; color:var(--gris-2); }
 .auditoria-detalles { font-size:12.5px; color:var(--texto-2); flex:1; }
 
+.auditoria-cambios-lista { display:flex; flex-direction:column; gap:6px; }
+.auditoria-cambio-item { display:flex; align-items:center; gap:8px; padding:4px 8px; background:var(--gris-bg); border-radius:6px; font-size:12px; }
+.auditoria-campo-label { font-weight:600; color:var(--texto); min-width:80px; }
+.auditoria-cambio-valor { display:flex; align-items:center; gap:6px; color:var(--texto-2); }
+.auditoria-antes { text-decoration:line-through; color:var(--rojo); opacity:.7; }
+.auditoria-flecha { color:var(--gris-2); font-size:10px; }
+.auditoria-despues { font-weight:500; color:var(--verde); }
+
 .auditoria-fecha { font-size:11px; color:var(--gris-2); margin:0; }
 
 @media(max-width:600px){

@@ -287,7 +287,7 @@ const auditLogSchema = new Schema(
     admin_id: { type: Types.ObjectId, ref: "User", required: true },
     accion: {
       type: String,
-      enum: ["crear", "modificar", "eliminar", "aprobar", "rechazar", "activar", "desactivar", "cambiar_config"],
+      enum: ["crear", "modificar", "modificar_perfil", "eliminar", "aprobar", "rechazar", "activar", "desactivar", "cambiar_config"],
       required: true,
     },
     entidad: {

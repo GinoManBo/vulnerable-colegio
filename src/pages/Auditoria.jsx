@@ -30,12 +30,39 @@ function entidadLabel(entidad) {
   return map[entidad] || entidad;
 }
 
-function detallesTexto(log) {
+function renderDetalles(log) {
+  const etiquetas = {
+    nombre:'Nombre', apellido:'Apellido', descripcion:'Descripción',
+    especialidad:'Especialidad', ciudad:'Ciudad', telefono:'Teléfono',
+    linkedin:'LinkedIn', intereses:'Intereses', destrezas:'Destrezas',
+    nombre_empresa:'Nombre empresa', rubro:'Rubro', sitio_web:'Sitio web',
+    region:'Región',
+  };
   const d = log.detalles || {};
-  if (d.usuario) return d.usuario;
-  if (d.clave) return `${d.clave}: ${JSON.stringify(d.valor_nuevo)}`;
-  if (d.email) return d.email;
-  return log.entidad_id ? `ID: ${log.entidad_id.slice(-6)}` : '';
+  if (d.cambios && Object.keys(d.cambios).length > 0) {
+    return (
+      <div className="auditoria-cambios-lista">
+        {Object.entries(d.cambios)
+          .filter(([_, val]) => String(val.antes) !== String(val.despues))
+          .map(([campo, val]) => (
+          <div key={campo} className="auditoria-cambio-item">
+            <span className="auditoria-campo-label">{etiquetas[campo] || campo}</span>
+            <span className="auditoria-cambio-valor">
+              <span className="auditoria-antes">{val.antes}</span>
+              <span className="auditoria-flecha">→</span>
+              <span className="auditoria-despues">{val.despues}</span>
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (d.usuario && d.resumen) return <span><strong>{d.usuario}</strong> — {d.resumen}</span>;
+  if (d.usuario) return <span>{d.usuario}</span>;
+  if (d.resumen) return <span>{d.resumen}</span>;
+  if (d.clave) return <span>{d.clave}: {JSON.stringify(d.valor_nuevo)}</span>;
+  if (d.email) return <span>{d.email}</span>;
+  return <span>ID: {log.entidad_id?.slice(-6)}</span>;
 }
 
 export default function Auditoria({ usuario }) {
@@ -138,7 +165,7 @@ export default function Auditoria({ usuario }) {
                       </div>
                     </div>
                     <div className="auditoria-detalles">
-                      {detallesTexto(log)}
+                      {renderDetalles(log)}
                     </div>
                   </div>
                   <p className="auditoria-fecha">{new Date(log.creado_en).toLocaleString('es-CL')}</p>

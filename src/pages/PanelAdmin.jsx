@@ -114,6 +114,10 @@ export default function PanelAdmin({ usuario }) {
   // Stats solicitudes
   const [statsSolicitudes, setStatsSolicitudes] = useState(null);
 
+  // Bienvenida masiva
+  const [enviandoBienvenida, setEnviandoBienvenida] = useState(false);
+  const [bienvenidaResult, setBienvenidaResult] = useState(null);
+
   // Carga inicial
   useEffect(() => {
     setCargando(true);
@@ -556,21 +560,30 @@ export default function PanelAdmin({ usuario }) {
             {!cargAuditoria && auditoria.length > 0 && (
               <div className="admin-tabla">
                 <div className="admin-tabla-header">
-                  <span>Fecha</span><span>Admin</span><span>Acción</span><span>Entidad</span><span>Detalles</span>
+                  <span>Fecha</span><span>Admin</span><span>Acción</span><span>Usuario</span><span>Cambios</span>
                 </div>
-                {auditoria.map(log => (
-                  <div key={log._id} className="admin-tabla-fila">
-                    <span className="admin-td-sm">{new Date(log.creado_en).toLocaleString('es-CL')}</span>
-                    <span className="admin-user-nombre" style={{fontSize:13}}>{log.admin_id?.nombre} {log.admin_id?.apellido}</span>
-                    <span className={`badge ${log.accion==='aprobar'||log.accion==='activar'?'badge-verde':log.accion==='rechazar'||log.accion==='eliminar'||log.accion==='desactivar'?'badge-rojo':'badge-azul'}`}>
-                      {log.accion.replace(/_/g, ' ')}
-                    </span>
-                    <span className="admin-td-sm">{log.entidad}</span>
-                    <span className="admin-td-sm" style={{maxWidth:300,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}} title={JSON.stringify(log.detalles)}>
-                      {log.detalles?.usuario || log.detalles?.clave || log.entidad_id}
-                    </span>
-                  </div>
-                ))}
+                {auditoria.map(log => {
+                  const esModPerfil = log.accion === 'modificar_perfil';
+                  let textoCambios = log.detalles?.resumen || log.detalles?.motivo || log.entidad_id || '';
+                  if (esModPerfil && log.detalles?.cambios && !log.detalles?.resumen) {
+                    textoCambios = Object.entries(log.detalles.cambios)
+                      .map(([campo, val]) => `${campo}: "${val.antes}" → "${val.despues}"`)
+                      .join('; ');
+                  }
+                  return (
+                    <div key={log._id} className="admin-tabla-fila">
+                      <span className="admin-td-sm">{new Date(log.creado_en).toLocaleString('es-CL')}</span>
+                      <span className="admin-user-nombre" style={{fontSize:13}}>{log.admin_id?.nombre} {log.admin_id?.apellido}</span>
+                      <span className={`badge ${log.accion==='aprobar'||log.accion==='activar'?'badge-verde':log.accion==='rechazar'||log.accion==='eliminar'||log.accion==='desactivar'?'badge-rojo':esModPerfil?'badge-naranja':'badge-azul'}`}>
+                        {esModPerfil ? 'Editar perfil' : log.accion.replace(/_/g, ' ')}
+                      </span>
+                      <span className="admin-td-sm" style={{fontSize:13}}>{log.detalles?.usuario || log.detalles?.clave || log.entidad_id}</span>
+                      <span className="admin-td-sm" style={{maxWidth:400,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',fontSize:12,color:'var(--texto-2)'}} title={textoCambios || JSON.stringify(log.detalles)}>
+                        {textoCambios}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -289,6 +289,17 @@ app.post('/api/auth/heartbeat', auth, async (req, res) => {
   }
 });
 
+// Logout: marcar como desconectado
+app.post('/api/auth/logout', auth, async (req, res) => {
+  try {
+    req.usuario.ultimaConexion = new Date(0);
+    await req.usuario.save({ validateBeforeSave: false });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Obtener estado online de un usuario
 app.get('/api/usuarios/:id/en-linea', auth, async (req, res) => {
   try {
@@ -1665,6 +1676,73 @@ app.get('/api/admin/solicitudes-stats', auth, soloRoles('admin'), async (req, re
 });
 
 // ─────────────────────────────────────────────
+//  ADMIN - ENVIAR BIENVENIDA A USUARIOS SIN CHAT
+// ─────────────────────────────────────────────
+
+app.post('/api/admin/enviar-bienvenida', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const adminUser = req.usuario;
+    const usuariosSinChat = await User.find({ rol: { $in: ['estudiante', 'empresa'] }, activo: true }).select('_id nombre apellido email rol');
+
+    // Obtener todas las conversaciones del admin
+    const convsAdmin = await Conversacion.find({ participantes: adminUser._id }).select('participantes');
+    const usuariosConChat = new Set();
+    for (const c of convsAdmin) {
+      for (const p of c.participantes) {
+        if (!p.equals(adminUser._id)) {
+          usuariosConChat.add(p.toString());
+        }
+      }
+    }
+
+    // Filtrar usuarios sin conversacion con admin
+    const usuariosPendientes = usuariosSinChat.filter(u => !usuariosConChat.has(u._id.toString()));
+
+    const resultados = [];
+    for (const u of usuariosPendientes) {
+      try {
+        const existe = await Conversacion.findOne({
+          participantes: { $all: [u._id, adminUser._id], $size: 2 },
+        });
+        if (!existe) {
+          const nuevaConv = await Conversacion.create({
+            participantes: [u._id, adminUser._id],
+            ultimo_mensaje_en: new Date(),
+          });
+          await Mensaje.create({
+            conversacion_id: nuevaConv._id,
+            remitente_id: adminUser._id,
+            contenido: '¡Hola! Bienvenido/a a la plataforma. Si tienes alguna duda o necesitas ayuda con tu perfil, postulaciones o cualquier tema, no dudes en escribirme. Estoy aquí para ayudarte.',
+            enviado_en: new Date(),
+          });
+          resultados.push({ usuario: `${u.nombre} ${u.apellido}`, email: u.email, rol: u.rol, estado: 'enviado' });
+        }
+      } catch (err) {
+        resultados.push({ usuario: `${u.nombre} ${u.apellido}`, email: u.email, rol: u.rol, estado: 'error', error: err.message });
+      }
+    }
+
+    // Auditoria
+    await AuditLog.create({
+      admin_id: adminUser._id,
+      accion: 'crear',
+      entidad: 'usuario',
+      entidad_id: null,
+      detalles: {
+        accion: 'enviar_bienvenida_masiva',
+        total_usuarios: usuariosPendientes.length,
+        enviados: resultados.filter(r => r.estado === 'enviado').length,
+        errores: resultados.filter(r => r.estado === 'error').length,
+      },
+    });
+
+    res.json({ ok: true, enviados: resultados.filter(r => r.estado === 'enviado').length, total: usuariosPendientes.length, detalles: resultados });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
 //  ADMIN - MODIFICAR PERFIL DE USUARIO
 //  (permiso privilegiado para editar perfiles)
 // ─────────────────────────────────────────────
@@ -1755,11 +1833,24 @@ app.patch('/api/admin/perfil/:usuarioId', auth, soloRoles('admin'), async (req, 
     // Construir detalles de auditoría
     const despues = { ...antes, ...cambiosUser };
     const cambios = {};
+    const resumenCambios = [];
+    const norm = v => (v == null || v === '') ? '' : v;
+
+    const etiquetasCampos = {
+      nombre: 'Nombre', apellido: 'Apellido', descripcion: 'Descripción',
+      especialidad: 'Especialidad', ciudad: 'Ciudad', telefono: 'Teléfono',
+      linkedin: 'LinkedIn', intereses: 'Intereses', destrezas: 'Destrezas',
+      nombre_empresa: 'Nombre empresa', rubro: 'Rubro', sitio_web: 'Sitio web',
+      region: 'Región',
+    };
 
     // Comparar campos de User
     Object.keys(antes).forEach(k => {
-      if (antes[k] !== despues[k]) {
-        cambios[k] = { antes: antes[k], despues: despues[k] };
+      const a = norm(antes[k]);
+      const d = norm(despues[k]);
+      if (a !== d) {
+        cambios[k] = { antes: a || '(vacío)', despues: d || '(vacío)' };
+        resumenCambios.push(`${etiquetasCampos[k] || k}: "${a || '(vacío)'}" → "${d || '(vacío)'}"`);
       }
     });
 
@@ -1767,10 +1858,13 @@ app.patch('/api/admin/perfil/:usuarioId', auth, soloRoles('admin'), async (req, 
     Object.keys(perfilAntes).forEach(k => {
       const valAntes = perfilAntes[k];
       const valDespues = perfilDespues[k];
-      const strAntes = Array.isArray(valAntes) ? JSON.stringify(valAntes) : valAntes;
-      const strDespues = Array.isArray(valDespues) ? JSON.stringify(valDespues) : valDespues;
+      const strAntes = Array.isArray(valAntes) ? JSON.stringify(valAntes) : norm(valAntes);
+      const strDespues = Array.isArray(valDespues) ? JSON.stringify(valDespues) : norm(valDespues);
       if (strAntes !== strDespues) {
         cambios[k] = { antes: strAntes || '(vacío)', despues: strDespues || '(vacío)' };
+        const displayAntes = Array.isArray(valAntes) ? `[${valAntes.join(', ')}]` : (strAntes || '(vacío)');
+        const displayDespues = Array.isArray(valDespues) ? `[${valDespues.join(', ')}]` : (strDespues || '(vacío)');
+        resumenCambios.push(`${etiquetasCampos[k] || k}: "${displayAntes}" → "${displayDespues}"`);
       }
     });
 
@@ -1785,6 +1879,7 @@ app.patch('/api/admin/perfil/:usuarioId', auth, soloRoles('admin'), async (req, 
         email: usuarioTarget.email,
         rol: usuarioTarget.rol,
         cambios,
+        resumen: resumenCambios.length > 0 ? resumenCambios.join('; ') : 'Sin cambios detectados',
       },
     });
 

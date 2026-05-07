@@ -82,7 +82,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      {usuario && <NavBar usuario={usuario} onLogout={() => setUsuario(null)} />}
+      {usuario && <NavBar usuario={usuario} onLogout={() => { authAPI.logout().catch(() => {}); setUsuario(null); }} />}
       <Routes>
         <Route path="/acceso" element={usuario ? <Navigate to="/" replace /> : <AuthPage onLogin={u => setUsuario(u)} />} />
 
