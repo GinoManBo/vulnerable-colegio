@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { mensajesAPI } from '../api';
+import OnlineStatus from '../components/OnlineStatus';
 import './Mensajes.css';
 
 function fmt(ts){ const d=(Date.now()-new Date(ts))/1000; if(d<60) return 'ahora'; if(d<3600) return `${Math.floor(d/60)}m`; if(d<86400) return new Date(ts).toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'}); return new Date(ts).toLocaleDateString('es-CL',{day:'numeric',month:'short'}); }
@@ -48,6 +49,35 @@ export default function Mensajes({ usuario }) {
       })
       .catch(e => setError(e.message))
       .finally(() => setCargConvs(false));
+  }, []);
+
+  // Polling: refrescar mensajes de la conversación activa cada 3s
+  useEffect(() => {
+    if (!activa) return;
+    const interval = setInterval(() => {
+      mensajesAPI.obtener(activa)
+        .then(data => {
+          setMsgs(p => {
+            const prev = p[activa] ?? [];
+            if (data.length !== prev.length) {
+              return { ...p, [activa]: data };
+            }
+            return p;
+          });
+        })
+        .catch(() => {});
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [activa]);
+
+  // Polling: refrescar lista de conversaciones cada 5s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      mensajesAPI.conversaciones()
+        .then(data => setConvs(data))
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   // Escuchar evento para recargar conversaciones
@@ -145,6 +175,7 @@ export default function Mensajes({ usuario }) {
                 <div className="msgs-conv-info">
                   <div className="msgs-conv-top">
                     <span className="msgs-conv-nombre">{c.participante?.nombre}</span>
+                    <OnlineStatus usuarioId={c.participante?._id} size={8} />
                     <span className="msgs-conv-tiempo">{c.ultimo_mensaje_en ? fmt(c.ultimo_mensaje_en) : ''}</span>
                   </div>
                   <div className="msgs-conv-bottom">
@@ -172,9 +203,12 @@ export default function Mensajes({ usuario }) {
                   {convActiva.participante?.nombre?.[0]??'?'}
                 </div>
                 <div className="msgs-chat-header-info">
-                  <Link to={`/perfil/${convActiva.participante?._id}`} className="msgs-chat-nombre">{convActiva.participante?.nombre}</Link>
-                  <span className={`badge ${convActiva.participante?.rol==='empresa'?'badge-azul':'badge-verde'}`} style={{fontSize:10}}>
-                    {convActiva.participante?.rol}
+                  <Link to={`/perfil/${convActiva.participante?._id}`} className="msgs-chat-nombre">
+                    {convActiva.participante?.nombre}
+                    <OnlineStatus usuarioId={convActiva.participante?._id} size={10} />
+                  </Link>
+                  <span className={`badge ${convActiva.participante?.rol==='empresa'?'badge-azul':convActiva.participante?.rol==='admin'?'badge-naranja':'badge-verde'}`} style={{fontSize:10}}>
+                    {convActiva.participante?.rol === 'admin' ? 'Administrador' : convActiva.participante?.rol}
                   </span>
                 </div>
               </div>

@@ -39,11 +39,11 @@ function RechazoModal({ onConfirm, onCancel }) {
     <div className="rechazo-modal-overlay" onClick={onCancel}>
       <div className="rechazo-modal" onClick={e => e.stopPropagation()}>
         <h3>Motivo de rechazo</h3>
-        <textarea placeholder="Indica el motivo del rechazo..." value={motivo} onChange={e => setMotivo(e.target.value)} rows={2} autoFocus />
+        <textarea placeholder="Indica el motivo del rechazo (requerido)..." value={motivo} onChange={e => setMotivo(e.target.value)} rows={2} autoFocus />
         <textarea placeholder="Mensaje adicional para el usuario (opcional)..." value={mensaje} onChange={e => setMensaje(e.target.value)} rows={2} style={{marginTop:8}} />
         <div className="rechazo-modal-btns">
           <button className="btn-secondary" onClick={onCancel}>Cancelar</button>
-          <button className="btn-primary" onClick={() => onConfirm(motivo, mensaje)}>Rechazar</button>
+          <button className="btn-primary" onClick={() => onConfirm(motivo, mensaje)} disabled={!motivo.trim()}>Rechazar</button>
         </div>
       </div>
     </div>
@@ -100,6 +100,8 @@ export default function PanelAdmin({ usuario }) {
   const [rechazoModal, setRechazoModal] = useState(null);
   const [editarDatosModal, setEditarDatosModal] = useState(null);
   const [mensajeModal, setMensajeModal] = useState(null);
+  const [cvPreviewUrl, setCvPreviewUrl] = useState(null);
+  const [enviandoMsgCv, setEnviandoMsgCv] = useState(false);
 
   // Auditoría
   const [auditoria, setAuditoria] = useState([]);
@@ -256,6 +258,8 @@ export default function PanelAdmin({ usuario }) {
       setSolicitudesPerfil(p => p.filter(s => s._id !== id));
       setRechazoModal(null);
       setStatsSolicitudes(await cargarStatsSolicitudes());
+      // Notificar al frontend del estudiante para que recargue sus datos aprobados
+      window.dispatchEvent(new Event('perfil-solicitud-rechazada'));
     } catch(e) { setError(e.message); }
   }
 
@@ -266,6 +270,24 @@ export default function PanelAdmin({ usuario }) {
       setRechazoModal(null);
       setStatsSolicitudes(await cargarStatsSolicitudes());
     } catch(e) { setError(e.message); }
+  }
+
+  async function enviarMensajeDesdeSolicitud(solicitud) {
+    if (!solicitud?.usuario_id?._id || enviandoMsgCv) return;
+    setEnviandoMsgCv(true);
+    try {
+      const { mensajesAPI } = await import('../api');
+      const conv = await mensajesAPI.iniciar(solicitud.usuario_id._id);
+      const msgTexto = `📋 Mensaje enviado desde: Solicitud CV\n\nHola ${solicitud.usuario_id?.nombre}, te contacto respecto a tu solicitud de currículum.`;
+      await mensajesAPI.enviar(conv._id, { texto: msgTexto });
+      window.dispatchEvent(new Event('recargar-mensajes-no-leidos'));
+      window.dispatchEvent(new Event('recargar-conversaciones'));
+      window.location.href = '/mensajes';
+    } catch(e) {
+      setError(e.message);
+    } finally {
+      setEnviandoMsgCv(false);
+    }
   }
 
   const usuariosFiltrados = usuarios
@@ -487,10 +509,10 @@ export default function PanelAdmin({ usuario }) {
                     <div className="solicitud-body">
                       <p className="solicitud-tipo">📄 Curriculum Vitae</p>
                       {s.curriculum_url && (
-                        <a href={s.curriculum_url} target="_blank" rel="noopener noreferrer" className="solicitud-cv-link">
+                        <button className="solicitud-cv-link btn-ver-cv" onClick={() => setCvPreviewUrl(s.curriculum_url)}>
                           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                           Ver CV
-                        </a>
+                        </button>
                       )}
                       {s.motivo_rechazo && (
                         <p className="solicitud-motivo">Motivo: {s.motivo_rechazo}</p>
@@ -504,6 +526,10 @@ export default function PanelAdmin({ usuario }) {
                         </button>
                         <button className="btn-rechazar" onClick={() => setRechazoModal({ tipo: 'cv', id: s._id })}>
                           <IcoX /> Rechazar
+                        </button>
+                        <button className="btn-mensaje-solicitud" onClick={() => enviarMensajeDesdeSolicitud(s)} disabled={enviandoMsgCv}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                          {enviandoMsgCv ? 'Enviando...' : 'Enviar mensaje'}
                         </button>
                       </div>
                     )}
@@ -705,6 +731,22 @@ export default function PanelAdmin({ usuario }) {
           }}
           onCancel={() => setEditarDatosModal(null)}
         />
+      )}
+
+      {cvPreviewUrl && (
+        <div className="cv-fullscreen-overlay" onClick={() => setCvPreviewUrl(null)}>
+          <div className="cv-fullscreen-content" onClick={e => e.stopPropagation()}>
+            <div className="cv-fullscreen-header">
+              <h3>Vista previa del Currículum</h3>
+              <button className="cv-fullscreen-close" onClick={() => setCvPreviewUrl(null)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="cv-fullscreen-body">
+              <iframe src={`http://localhost:5000${cvPreviewUrl}`} title="Vista previa del CV" />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

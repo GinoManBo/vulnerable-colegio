@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ofertasAPI, perfilAPI, mensajesAPI } from '../api';
 import PostulantesModal from '../components/PostulantesModal';
+import OnlineStatus from '../components/OnlineStatus';
 import './VistaEmpresa.css';
 
 const ESPECIALIDADES = ['Electricidad industrial','Mecatrónica','Redes y comunicaciones','Automatización y PLC','Construcción','Otro'];
@@ -22,7 +23,7 @@ function IcoOn()    { return <svg width="14" height="14" viewBox="0 0 24 24" fil
 function IcoUsers() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
 function IcoTrash() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>; }
 
-const FORM_INIT = { titulo:'', descripcion:'', ubicacion:'', salario_min:'', salario_max:'', modalidad:'presencial', especialidades:[], cierre_en:'' };
+const FORM_INIT = { titulo:'', descripcion:'', ubicacion:'', salario_min:'', salario_max:'', modalidad:'presencial', especialidades:[], cierre_en:'', puestos_disponibles:1 };
 
 function Spinner() { return <span className="spinner" style={{display:'inline-block',width:15,height:15,border:'2px solid rgba(255,255,255,.3)',borderTopColor:'#fff',borderRadius:'50%',animation:'spin .7s linear infinite'}}/>; }
 
@@ -36,6 +37,7 @@ function FormPublicar({ onGuardar, onCancelar, inicial }) {
     modalidad:                inicial.modalidad ?? 'presencial',
     especialidades:           inicial.especialidades_requeridas ?? [],
     cierre_en:                inicial.cierre_en ? inicial.cierre_en.slice(0,10) : '',
+    puestos_disponibles:      inicial.puestos_disponibles ?? 1,
   } : FORM_INIT);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -66,6 +68,7 @@ function FormPublicar({ onGuardar, onCancelar, inicial }) {
         salario_max:              form.salario_max || undefined,
         especialidades_requeridas:form.especialidades,
         cierre_en:                form.cierre_en || undefined,
+        puestos_disponibles:      form.puestos_disponibles || 1,
       };
       await onGuardar(payload);
     } catch(err){ setApiErr(err.message); }
@@ -90,6 +93,7 @@ function FormPublicar({ onGuardar, onCancelar, inicial }) {
           <div className="fp-field"><label>Sueldo mínimo (CLP)</label><input type="number" placeholder="Ej: 600000" value={form.salario_min} onChange={e=>upd('salario_min',e.target.value)}/></div>
           <div className="fp-field"><label>Sueldo máximo (CLP)</label><input type="number" placeholder="Ej: 900000" value={form.salario_max} onChange={e=>upd('salario_max',e.target.value)} className={errors.salario_max?'err':''}/>{errors.salario_max&&<span className="ferr">{errors.salario_max}</span>}</div>
           <div className="fp-field"><label>Fecha de cierre</label><input type="date" value={form.cierre_en} onChange={e=>upd('cierre_en',e.target.value)}/></div>
+          <div className="fp-field"><label>Puestos disponibles</label><input type="number" min="1" placeholder="Ej: 3" value={form.puestos_disponibles} onChange={e=>upd('puestos_disponibles',e.target.value)}/></div>
         </div>
         <div className="fp-esp-section">
           <label>Especialidades requeridas</label>
@@ -404,7 +408,10 @@ export default function VistaEmpresa({ usuario }) {
                   <div key={p._id} className="emp-post-fila card">
                     <div className="emp-post-av">{est.nombre?.[0]??'E'}</div>
                     <div className="emp-post-info">
-                      <p className="emp-post-nombre">{est.nombre} {est.apellido}</p>
+                      <p className="emp-post-nombre">
+                        {est.nombre} {est.apellido}
+                        <OnlineStatus usuarioId={est.usuario_id?._id} size={9} />
+                      </p>
                       <p className="emp-post-sub">{est.email} · {p._ofertaTitulo}</p>
                     </div>
                     <span className={`badge ${cfg.cls}`}>{cfg.label}</span>

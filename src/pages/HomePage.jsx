@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ofertasAPI, perfilAPI } from '../api';
+import { ofertasAPI, perfilAPI, statsAPI } from '../api';
 import JobCard from '../components/JobCard';
 import ProfileSidebar from '../components/ProfileSidebar';
 import './HomePage.css';
@@ -19,6 +19,7 @@ export default function HomePage() {
   const [cargando, setCargando] = useState(true);
   const [ofertas, setOfertas] = useState([]);
   const [misPostulacionesIds, setMisPostulacionesIds] = useState(new Set());
+  const [stats, setStats] = useState({ ofertasActivas: 0, empresasRegistradas: 0, estudiantesOnline: 0 });
 
   // Obtener usuario del localStorage
   const usuarioJson = localStorage.getItem('usuario');
@@ -27,8 +28,12 @@ export default function HomePage() {
   useEffect(() => {
     async function cargarDatos() {
       try {
-        const datosOfertas = await ofertasAPI.listar();
+        const [datosOfertas, datosStats] = await Promise.all([
+          ofertasAPI.listar(),
+          statsAPI.obtener().catch(() => ({ ofertasActivas: 0, empresasRegistradas: 0, estudiantesOnline: 0 })),
+        ]);
         setOfertas(datosOfertas.ofertas || datosOfertas || []);
+        setStats(datosStats);
       } catch (err) {
         setOfertas([]);
       } finally {
@@ -82,11 +87,11 @@ export default function HomePage() {
           <h1 className="hero-titulo">Encuentra tu primera oportunidad laboral</h1>
           <p className="hero-subtitulo">Conectamos egresados técnicos del Bío-Bío con empresas que valoran tu formación</p>
           <div className="hero-stats">
-            <div className="hero-stat"><span className="hero-stat-num">123</span><span className="hero-stat-label">Ofertas activas</span></div>
+            <div className="hero-stat"><span className="hero-stat-num">{stats.ofertasActivas}</span><span className="hero-stat-label">Ofertas activas</span></div>
             <div className="hero-stat-div" />
-            <div className="hero-stat"><span className="hero-stat-num">231</span><span className="hero-stat-label">Empresas registradas</span></div>
+            <div className="hero-stat"><span className="hero-stat-num">{stats.empresasRegistradas}</span><span className="hero-stat-label">Empresas registradas</span></div>
             <div className="hero-stat-div" />
-            <div className="hero-stat"><span className="hero-stat-num">321</span><span className="hero-stat-label">Estudiantes conectados</span></div>
+            <div className="hero-stat"><span className="hero-stat-num">{stats.estudiantesOnline}</span><span className="hero-stat-label">Estudiantes conectados</span></div>
           </div>
         </div>
       </div>

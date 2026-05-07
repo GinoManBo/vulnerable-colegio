@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { perfilAPI, ofertasAPI } from '../api.js';
+import { perfilAPI, ofertasAPI, fetchAPI, historialAPI } from '../api.js';
+import OnlineStatus from '../components/OnlineStatus';
 import './MiPerfil.css';
 
 const DESTREZAS_SUGERIDAS = ['AutoCAD', 'Arduino', 'Python', 'Linux', 'Neumática', 'Hidráulica', 'Mantenimiento preventivo', 'Lectura de planos'];
@@ -40,16 +41,29 @@ export default function MiPerfil({ usuario }) {
     region: '',
   });
   const [tmp, setTmp] = useState({ ...datos });
+  const [datosAprobados, setDatosAprobados] = useState(null);
 
   const [destrezas, setDestrezas] = useState([]);
   const [intereses, setIntereses] = useState([]);
   const [nuevaDestreza, setNuevaDestreza] = useState('');
   const [nuevoInteres, setNuevoInteres] = useState('');
   const [curriculum, setCurriculum] = useState(null);
+  const [cvUrl, setCvUrl] = useState(null);
+  const [cvPreview, setCvPreview] = useState(null);
   const [perfilPendiente, setPerfilPendiente] = useState(false);
   const [solicitudPendiente, setSolicitudPendiente] = useState(null);
+  const [solicitudRechazada, setSolicitudRechazada] = useState(null);
+  const [subiendoCv, setSubiendoCv] = useState(false);
+  const [eliminarCv, setEliminarCv] = useState(false);
+  const [destrezasOrig, setDestrezasOrig] = useState([]);
+  const [interesesOrig, setInteresesOrig] = useState([]);
 
-  const promedioCalif = 0;
+  const [historialTrabajo, setHistorialTrabajo] = useState([]);
+  const [cargandoHistorial, setCargandoHistorial] = useState(false);
+
+  const promedioCalif = historialTrabajo.length > 0
+    ? historialTrabajo.reduce((sum, h) => sum + (h.nota_empresa || 0), 0) / historialTrabajo.length
+    : 0;
 
   // Estados para empresa
   const [ofertasEmpresa, setOfertasEmpresa] = useState([]);
@@ -107,16 +121,67 @@ export default function MiPerfil({ usuario }) {
           region: perfil.region || '',
         };
         setDatos(datosCompletos);
+        setDatosAprobados(datosCompletos);
         setTmp(datosCompletos);
         setDestrezas(perfil.destrezas || []);
         setIntereses(perfil.intereses || []);
         setFotoPreview(perfil.foto_perfil_url || perfil.logo_url || null);
+        if (perfil.curriculum_url) {
+          setCvUrl(perfil.curriculum_url);
+          setCvPreview(`http://localhost:5000${perfil.curriculum_url}`);
+          setCurriculum('curriculum.pdf');
+        }
         setPerfilPendiente(res.perfilPendiente || false);
         setLoading(false);
       })
       .catch(err => {
         setLoading(false);
       });
+  }, [usuario]);
+
+  // Cargar historial de trabajo para estudiantes
+  useEffect(() => {
+    if (esEmpresa || !usuario) return;
+    setCargandoHistorial(true);
+    perfilAPI.historialTrabajo(usuario._id)
+      .then(h => setHistorialTrabajo(h || []))
+      .catch(() => {})
+      .finally(() => setCargandoHistorial(false));
+  }, [usuario, esEmpresa]);
+
+  // Escuchar cuando el admin rechaza una solicitud de perfil → recargar datos aprobados
+  useEffect(() => {
+    function handleRechazo() {
+      if (!usuario) return;
+      perfilAPI.me()
+        .then(res => {
+          const perfil = res.perfil || {};
+          const datosCompletos = {
+            nombre: res.nombre || usuario.nombre,
+            apellido: res.apellido || usuario.apellido,
+            especialidad: perfil.especialidad || '',
+            descripcion: perfil.descripcion || '',
+            ciudad: perfil.ciudad || '',
+            telefono: perfil.telefono || '',
+            email: res.email || usuario.email,
+            linkedin: perfil.linkedin || '',
+            nombre_empresa: perfil.nombre_empresa || '',
+            rubro: perfil.rubro || '',
+            sitio_web: perfil.sitio_web || '',
+            region: perfil.region || '',
+          };
+          setDatos(datosCompletos);
+          setDatosAprobados(datosCompletos);
+          setTmp(datosCompletos);
+          setDestrezas(perfil.destrezas || []);
+          setIntereses(perfil.intereses || []);
+          setFotoPreview(perfil.foto_perfil_url || perfil.logo_url || null);
+          setPerfilPendiente(false);
+        })
+        .catch(() => {});
+    }
+    window.addEventListener('perfil-solicitud-rechazada', handleRechazo);
+    return () => window.removeEventListener('perfil-solicitud-rechazada', handleRechazo);
   }, [usuario]);
 
   // Calcular porcentaje de completitud según el rol
@@ -150,13 +215,60 @@ export default function MiPerfil({ usuario }) {
 
   function handleCurriculum(e) {
     const file = e.target.files[0];
-    if (file) setCurriculum(file.name);
+    if (!file) return;
+    if (file.type !== 'application/pdf') {
+      alert('Solo se permiten archivos PDF');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('El archivo no debe superar los 5 MB');
+      return;
+    }
+    setSubiendoCv(true);
+    const formData = new FormData();
+    formData.append('cv', file);
+
+    fetch('http://localhost:5000/api/perfil/cv', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) {
+          setCvUrl(data.cvUrl);
+          setCvPreview(`http://localhost:5000${data.cvUrl}`);
+          setCurriculum(file.name);
+          if (data.pendiente) setPerfilPendiente(true);
+        } else {
+          alert(data.error || 'Error al subir el CV');
+        }
+      })
+      .catch(() => alert('Error al subir el CV'))
+      .finally(() => setSubiendoCv(false));
   }
 
   function guardar() {
     if (!usuario) return;
-    setLoading(true);
-    
+
+    const camposTexto = esEmpresa
+      ? ['nombre_empresa','descripcion','rubro','ciudad','region','telefono','sitio_web']
+      : ['nombre','apellido','descripcion','especialidad','ciudad','telefono','linkedin'];
+
+    const hayCambiosTexto = camposTexto.some(k => tmp[k] !== datos[k]);
+    const hayCambiosDestrezas = JSON.stringify(destrezas) !== JSON.stringify(destrezasOrig);
+    const hayCambiosIntereses = JSON.stringify(intereses) !== JSON.stringify(interesesOrig);
+    const hayCambiosCv = eliminarCv && curriculum;
+
+    if (!hayCambiosTexto && !hayCambiosDestrezas && !hayCambiosIntereses && !hayCambiosCv) {
+      setEditando(false);
+      setTmp({ ...datos });
+      setDestrezas([...destrezasOrig]);
+      setIntereses([...interesesOrig]);
+      setEliminarCv(false);
+      return;
+    }
+
     const payload = esEmpresa
       ? {
           nombre_empresa: tmp.nombre_empresa,
@@ -179,13 +291,37 @@ export default function MiPerfil({ usuario }) {
           ...(intereses.length && { intereses: JSON.stringify(intereses) }),
         };
 
+    setLoading(true);
+
+    if (eliminarCv && curriculum) {
+      perfilAPI.eliminarCv()
+        .then(() => {
+          setCvUrl(null);
+          setCvPreview(null);
+          setCurriculum(null);
+          setEliminarCv(false);
+          continuarGuardado(payload);
+        })
+        .catch(() => continuarGuardado(payload));
+    } else {
+      continuarGuardado(payload);
+    }
+  }
+
+  function continuarGuardado(payload) {
     perfilAPI.actualizar(payload)
       .then((res) => {
-        setDatos({ ...tmp });
         setEditando(false);
         setLoading(false);
         if (res?.pendiente) {
           setPerfilPendiente(true);
+          if (datosAprobados) {
+            setDatos(datosAprobados);
+            setTmp(datosAprobados);
+          }
+        } else {
+          setDatos({ ...tmp });
+          setDatosAprobados({ ...tmp });
         }
       })
       .catch(err => {
@@ -226,6 +362,20 @@ export default function MiPerfil({ usuario }) {
             </div>
           )}
 
+          {solicitudRechazada && (
+            <div className="perfil-rechazado-banner">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--rojo)" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              <div>
+                <p className="perfil-rechazado-banner-title">Solicitud de modificación rechazada</p>
+                <p className="perfil-rechazado-banner-text">Tu última solicitud de cambio fue rechazada. Motivo: {solicitudRechazada.motivo_rechazo}</p>
+                <p className="perfil-rechazado-banner-text">Tu perfil se mantiene con los datos aprobados anteriormente.</p>
+              </div>
+              <button className="btn-cerrar-banner" onClick={() => setSolicitudRechazada(null)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
+
           <div className="card miperfil-header-card">
             <div className="miperfil-cover" />
             <div className="miperfil-header-body">
@@ -248,7 +398,7 @@ export default function MiPerfil({ usuario }) {
               <div className="miperfil-header-info">
                 <div className="miperfil-nombre-wrap">
                   <h1 className="miperfil-nombre">{esEmpresa ? datos.nombre_empresa : `${datos.nombre} ${datos.apellido}`}</h1>
-                  <span className="badge badge-verde">{esEmpresa ? 'Empresa' : 'Estudiante'}</span>
+                  <span className="badge badge-verde">{esEmpresa ? 'Empresa' : usuario?.rol === 'admin' ? 'Administrador' : 'Estudiante'}</span>
                 </div>
                 <p className="miperfil-especialidad">{esEmpresa ? (datos.rubro || datos.nombre_empresa) : datos.especialidad}</p>
                 <div className="miperfil-meta">
@@ -260,10 +410,10 @@ export default function MiPerfil({ usuario }) {
                 {editando ? (
                   <>
                     <button className="btn-primary" onClick={guardar}>Guardar cambios</button>
-                    <button className="btn-secondary" onClick={() => { setEditando(false); setTmp({ ...datos }); }}>Cancelar</button>
+                    <button className="btn-secondary" onClick={() => { setEditando(false); setTmp({ ...datos }); setDestrezas(destrezasOrig); setIntereses(interesesOrig); setEliminarCv(false); }}>Cancelar</button>
                   </>
                 ) : (
-                  <button className="btn-secondary" onClick={() => setEditando(true)}>
+                  <button className="btn-secondary" onClick={() => { setEditando(true); setDestrezasOrig([...destrezas]); setInteresesOrig([...intereses]); setEliminarCv(false); }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     Editar perfil
                   </button>
@@ -355,6 +505,12 @@ export default function MiPerfil({ usuario }) {
                     <span className="cv-hint">PDF, máx. 5 MB</span>
                   </div>
                   <input ref={cvRef} type="file" accept=".pdf" style={{ position: 'absolute', width: 0, height: 0, opacity: 0, pointerEvents: 'none' }} onChange={handleCurriculum} />
+                  {curriculum && !eliminarCv && (
+                    <label className="cv-delete-check">
+                      <input type="checkbox" checked={eliminarCv} onChange={e => setEliminarCv(e.target.checked)} />
+                      <span>Eliminar currículum actual</span>
+                    </label>
+                  )}
                 </div>
               )}
             </div>
@@ -379,6 +535,14 @@ export default function MiPerfil({ usuario }) {
                 <div className="cv-chip">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                   {curriculum}
+                </div>
+              )}
+              {!esEmpresa && cvPreview && (
+                <div className="cv-preview-wrap">
+                  <h3 className="cv-preview-title">Vista previa del currículum</h3>
+                  <div className="cv-pdf-container">
+                    <iframe src={cvPreview} className="cv-pdf-frame" title="Vista previa del CV" />
+                  </div>
                 </div>
               )}
             </div>
@@ -440,16 +604,20 @@ export default function MiPerfil({ usuario }) {
               </div>
             </div>
             <div className="historial-lista">
-              {[].map(t => (
-                <div key={t.id} className="historial-item">
+              {cargandoHistorial ? (
+                <p className="empty-state">Cargando historial...</p>
+              ) : historialTrabajo.length === 0 ? (
+                <p className="empty-state">Aún no tienes trabajos completados</p>
+              ) : historialTrabajo.map(h => (
+                <div key={h._id} className="historial-item">
                   <div className="historial-item-top">
                     <div>
-                      <p className="historial-titulo">{t.titulo}</p>
-                      <p className="historial-empresa">{t.empresa} · {t.fecha}</p>
+                      <p className="historial-titulo">{h.empleo_id?.titulo || 'Trabajo'}</p>
+                      <p className="historial-empresa">{h.empresa_id?.nombre_empresa || 'Empresa'} · {h.fecha_fin ? new Date(h.fecha_fin).toLocaleDateString('es-CL') : 'En curso'}</p>
                     </div>
-                    <EstrellaFill valor={t.puntuacion} />
+                    {h.nota_empresa ? <EstrellaFill valor={h.nota_empresa} /> : <span className="badge badge-gris">Sin valoración</span>}
                   </div>
-                  <p className="historial-comentario">"{t.comentario}"</p>
+                  {h.feedback_empresa && <p className="historial-comentario">"{h.feedback_empresa}"</p>}
                 </div>
               ))}
             </div>
@@ -515,7 +683,7 @@ export default function MiPerfil({ usuario }) {
               ) : (
                 <>
                   <div className="aside-stat">
-                    <span className="aside-stat-n">0</span>
+                    <span className="aside-stat-n">{historialTrabajo.filter(h => h.estado === 'completado').length}</span>
                     <span className="aside-stat-l">Trabajos completados</span>
                   </div>
                   <div className="aside-stat">

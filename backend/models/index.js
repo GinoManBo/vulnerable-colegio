@@ -14,9 +14,18 @@ const userSchema = new Schema(
       required: true,
     },
     activo: { type: Boolean, default: true },
+    ultimaConexion: { type: Date, default: null },
   },
   { timestamps: { createdAt: "creado_en", updatedAt: "actualizado_en" } }
 );
+
+userSchema.virtual('enLinea').get(function() {
+  if (!this.ultimaConexion) return false;
+  return (Date.now() - new Date(this.ultimaConexion).getTime()) < 120000;
+});
+
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 const User = model("User", userSchema);
 
@@ -67,17 +76,18 @@ const publicacionEmpleoSchema = new Schema(
     titulo: { type: String, required: true, trim: true },
     descripcion: { type: String, required: true },
     ubicacion: { type: String, required: true },
-    salario_min: { type: Number, min: 0 },               
+    salario_min: { type: Number, min: 0 },
     salario_max: { type: Number, min: 0 },
     modalidad: {
       type: String,
       enum: ["presencial", "remoto", "híbrido"],
       default: "presencial",
     },
-    especialidades_requeridas: [{ type: String }],        
+    especialidades_requeridas: [{ type: String }],
     activo: { type: Boolean, default: true },
     cierre_en: { type: Date, default: null },
     motivo_cierre: { type: String, maxlength: 500 },
+    puestos_disponibles: { type: Number, default: 1, min: 1 },
   },
   { timestamps: { createdAt: "publicado_en", updatedAt: "actualizado_en" } }
 );
@@ -296,6 +306,28 @@ auditLogSchema.index({ creado_en: -1 });
 const AuditLog = model("AuditLog", auditLogSchema);
 
 // ─────────────────────────────────────────────
+//  HISTORIAL DE TRABAJOS
+// ─────────────────────────────────────────────
+const historialTrabajoSchema = new Schema(
+  {
+    estudiante_id: { type: Types.ObjectId, ref: "PerfilEstudiante", required: true },
+    empresa_id: { type: Types.ObjectId, ref: "PerfilEmpresa", required: true },
+    empleo_id: { type: Types.ObjectId, ref: "PublicacionEmpleo", required: true },
+    estado: { type: String, enum: ["activo", "completado"], default: "activo" },
+    feedback_empresa: { type: String, maxlength: 1000, default: null },
+    nota_empresa: { type: Number, min: 1, max: 7, default: null },
+    fecha_inicio: { type: Date, default: null },
+    fecha_fin: { type: Date, default: null },
+  },
+  { timestamps: { createdAt: "creado_en", updatedAt: "actualizado_en" } }
+);
+
+historialTrabajoSchema.index({ estudiante_id: 1 });
+historialTrabajoSchema.index({ empresa_id: 1 });
+
+const HistorialTrabajo = model("HistorialTrabajo", historialTrabajoSchema);
+
+// ─────────────────────────────────────────────
 //  EXPORTS
 // ─────────────────────────────────────────────
 export {
@@ -313,4 +345,5 @@ export {
   SolicitudCV,
   AppConfig,
   AuditLog,
+  HistorialTrabajo,
 };

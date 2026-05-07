@@ -15,7 +15,21 @@ import MisPostulaciones from './pages/MisPostulaciones';
 import PerfilPublico from './pages/PerfilPublico';
 import Notificaciones from './pages/Notificaciones';
 import './index.css';
-import { authAPI } from './api';
+import { authAPI, fetchAPI } from './api';
+
+// Heartbeat: mantener ultimaConexion actualizado cada 60s
+function useHeartbeat(usuario) {
+  useEffect(() => {
+    if (!usuario) return;
+    // Enviar heartbeat inmediatamente
+    fetchAPI('/auth/heartbeat', { method: 'POST' }).catch(() => {});
+    // Luego cada 60 segundos
+    const interval = setInterval(() => {
+      fetchAPI('/auth/heartbeat', { method: 'POST' }).catch(() => {});
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [usuario?._id]);
+}
 
 function RutaProtegida({ usuario, roles, children }) {
   if (!usuario) return <Navigate to="/acceso" replace />;
@@ -26,6 +40,8 @@ function RutaProtegida({ usuario, roles, children }) {
 export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  useHeartbeat(usuario);
 
   // Restaurar usuario del localStorage al cargar y verificar con backend
   useEffect(() => {

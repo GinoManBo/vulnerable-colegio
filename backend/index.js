@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
+import fs from 'fs';
 import { connectDB } from './db.js';
 import { hashPassword, comparePassword } from './auth.js';
 import {
@@ -21,6 +23,7 @@ import {
   SolicitudCV,
   AppConfig,
   AuditLog,
+  HistorialTrabajo,
 } from './models/index.js';
 
 dotenv.config();
@@ -31,6 +34,27 @@ const PORT = process.env.PORT || 5000;
 // Para resolver rutas en ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
+
+// Directorio de uploads para CVs
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+// Configurar multer para subida de archivos
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1E9)}-${file.originalname}`;
+    cb(null, uniqueName);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') cb(null, true);
+    else cb(new Error('Solo se permiten archivos PDF'));
+  },
+});
 
 // CORS: permitir múltiples orígenes (desarrollo + producción)
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
@@ -54,6 +78,9 @@ app.use(express.json());
 const distPath = path.resolve(__dirname, '..', 'dist');
 app.use(express.static(distPath));
 
+// Servir archivos de uploads (CVs)
+app.use('/uploads', express.static(uploadsDir));
+
 connectDB();
 
 // ─────────────────────────────────────────────
@@ -73,6 +100,11 @@ async function auth(req, res, next) {
     if (!usuario || !usuario.activo)
       return res.status(401).json({ error: 'Usuario inválido o inactivo' });
     req.usuario = usuario;
+    // Actualizar ultimaConexion (throttle: solo si pasaron > 60s)
+    if (!usuario.ultimaConexion || (Date.now() - new Date(usuario.ultimaConexion).getTime()) > 60000) {
+      usuario.ultimaConexion = new Date();
+      await usuario.save({ validateBeforeSave: false });
+    }
     next();
   } catch {
     return res.status(401).json({ error: 'Token inválido o expirado' });
@@ -241,6 +273,199 @@ app.get('/api/perfil/me', auth, async (req, res) => {
     }
 
     res.json({ ...req.usuario.toObject(), perfil, perfilPendiente });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Heartbeat: actualizar ultimaConexion explícitamente
+app.post('/api/auth/heartbeat', auth, async (req, res) => {
+  try {
+    req.usuario.ultimaConexion = new Date();
+    await req.usuario.save({ validateBeforeSave: false });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener estado online de un usuario
+app.get('/api/usuarios/:id/en-linea', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select('ultimaConexion');
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+    res.json({ enLinea: user.enLinea, ultimaConexion: user.ultimaConexion });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Subir CV (PDF)
+app.post('/api/perfil/cv', auth, soloRoles('estudiante'), upload.single('cv'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
+
+    const cvUrl = `/uploads/${req.file.filename}`;
+
+    // Actualizar el perfil del estudiante con la URL del CV
+    await PerfilEstudiante.findOneAndUpdate(
+      { usuario_id: req.usuario._id },
+      { curriculum_url: cvUrl },
+      { upsert: true, new: true }
+    );
+
+    // Si el usuario ya está verificado, crear solicitud de aprobación
+    const solicitudAprobada = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'aprobada' });
+    const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'pendiente' });
+
+    if (solicitudAprobada && !solicitudPendiente) {
+      await SolicitudCV.create({
+        usuario_id: req.usuario._id,
+        curriculum_url: cvUrl,
+        estado: 'pendiente',
+      });
+
+      await Notificacion.create({
+        usuario_id: req.usuario._id,
+        tipo: 'otra',
+        titulo: 'CV enviado para revisión',
+        texto: 'Tu currículum ha sido enviado al administrador para su revisión.',
+        link: '/perfil',
+      });
+
+      const admins = await User.find({ rol: 'admin' }).select('_id');
+      for (const admin of admins) {
+        await Notificacion.create({
+          usuario_id: admin._id,
+          tipo: 'otra',
+          titulo: 'Nuevo CV para revisar',
+          texto: `${req.usuario.nombre} ${req.usuario.apellido} subió un nuevo currículum.`,
+          link: '/admin',
+        });
+      }
+
+      return res.json({ ok: true, cvUrl, pendiente: true });
+    }
+
+    res.json({ ok: true, cvUrl, pendiente: false });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener CV de un estudiante
+app.get('/api/perfil/cv/:usuarioId', auth, async (req, res) => {
+  try {
+    const perfil = await PerfilEstudiante.findOne({ usuario_id: req.params.usuarioId }).select('curriculum_url');
+    if (!perfil?.curriculum_url) return res.status(404).json({ error: 'CV no encontrado' });
+    res.json({ cvUrl: perfil.curriculum_url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Eliminar CV
+app.delete('/api/perfil/cv', auth, soloRoles('estudiante'), async (req, res) => {
+  try {
+    const perfil = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
+    if (!perfil?.curriculum_url) return res.status(404).json({ error: 'No tienes un CV subido' });
+
+    // Eliminar archivo físico
+    const filePath = path.join(__dirname, perfil.curriculum_url.replace('/uploads', ''));
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+    perfil.curriculum_url = null;
+    await perfil.save();
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener historial de trabajo de un estudiante (público)
+app.get('/api/perfil/historial-trabajo/:usuarioId', auth, async (req, res) => {
+  try {
+    const perfilEst = await PerfilEstudiante.findOne({ usuario_id: req.params.usuarioId });
+    if (!perfilEst) return res.json([]);
+
+    const historial = await HistorialTrabajo.find({ estudiante_id: perfilEst._id, estado: 'completado' })
+      .populate({
+        path: 'empresa_id',
+        select: 'nombre_empresa logo_url rubro',
+      })
+      .populate({
+        path: 'empleo_id',
+        select: 'titulo',
+      })
+      .sort({ fecha_fin: -1 });
+
+    res.json(historial);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Obtener estudiantes contratados por oferta (solo empresa dueña)
+app.get('/api/ofertas/:id/contratados', auth, soloRoles('empresa', 'admin'), async (req, res) => {
+  try {
+    const oferta = await PublicacionEmpleo.findById(req.params.id).populate('empresa_id');
+    if (!oferta) return res.status(404).json({ error: 'Oferta no encontrada' });
+
+    const historial = await HistorialTrabajo.find({ empleo_id: oferta._id })
+      .populate({
+        path: 'estudiante_id',
+        populate: { path: 'usuario_id', select: 'nombre apellido email' },
+      })
+      .populate('empleo_id', 'titulo');
+
+    res.json(historial);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Empresa envía feedback y nota a estudiante contratado
+app.patch('/api/historial-trabajo/:id/feedback', auth, soloRoles('empresa', 'admin'), async (req, res) => {
+  try {
+    const { feedback_empresa, nota_empresa, estado } = req.body;
+
+    const historial = await HistorialTrabajo.findById(req.params.id)
+      .populate({
+        path: 'estudiante_id',
+        populate: { path: 'usuario_id', select: 'nombre apellido email' },
+      })
+      .populate('empleo_id', 'titulo');
+
+    if (!historial) return res.status(404).json({ error: 'Registro no encontrado' });
+
+    // Verificar que la empresa es dueña
+    const perfilEmpresa = await PerfilEmpresa.findOne({ usuario_id: req.usuario._id });
+    if (!historial.empresa_id.equals(perfilEmpresa?._id)) return res.status(403).json({ error: 'Sin permisos' });
+
+    if (feedback_empresa !== undefined) historial.feedback_empresa = feedback_empresa;
+    if (nota_empresa !== undefined) historial.nota_empresa = nota_empresa;
+    if (estado === 'completado') {
+      historial.estado = 'completado';
+      historial.fecha_fin = new Date();
+    }
+
+    await historial.save();
+
+    // Notificar al estudiante
+    if (historial.estudiante_id?.usuario_id) {
+      await Notificacion.create({
+        usuario_id: historial.estudiante_id.usuario_id,
+        tipo: 'otra',
+        titulo: estado === 'completado' ? 'Trabajo completado' : 'Feedback recibido',
+        texto: estado === 'completado'
+          ? `Tu trabajo en "${historial.empleo_id?.titulo}" ha sido completado. La empresa te ha dejado una valoración.`
+          : `Has recibido una nueva valoración de la empresa en "${historial.empleo_id?.titulo}".`,
+        link: '/perfil',
+      });
+    }
+
+    res.json({ ok: true, historial });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -541,9 +766,24 @@ async function notificarCierreOferta(empleoId, tituloOferta, motivoCierre = null
 }
 
 // ─────────────────────────────────────────────
-//  OFERTAS
+//  OFERTAS (públicas y privadas)
 //  IMPORTANTE: /mis-ofertas debe ir ANTES de /:id
 // ─────────────────────────────────────────────
+
+// Stats públicas (sin auth): ofertas activas, empresas, estudiantes online
+app.get('/api/stats', async (req, res) => {
+  try {
+    const dosMinAtras = new Date(Date.now() - 120000);
+    const [ofertasActivas, empresasRegistradas, estudiantesOnline] = await Promise.all([
+      PublicacionEmpleo.countDocuments({ activo: true }),
+      User.countDocuments({ rol: 'empresa', activo: true }),
+      User.countDocuments({ rol: 'estudiante', activo: true, ultimaConexion: { $gte: dosMinAtras } }),
+    ]);
+    res.json({ ofertasActivas, empresasRegistradas, estudiantesOnline });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.get('/api/ofertas', auth, async (req, res) => {
   try {
@@ -590,9 +830,10 @@ app.patch('/api/ofertas/postulaciones/:postId/estado', auth, soloRoles('empresa'
     const validos = ['pendiente','en_revision','aceptada','rechazada','contratado','cerrado_por_fecha'];
     if (!validos.includes(estado)) return res.status(400).json({ error: 'Estado inválido' });
 
+    const postAnterior = await Postulacion.findById(req.params.postId);
     const post = await Postulacion.findByIdAndUpdate(req.params.postId, { estado }, { returnDocument: 'after' })
       .populate('estudiante_id', 'usuario_id')
-      .populate('empleo_id', 'titulo');
+      .populate({ path: 'empleo_id', populate: { path: 'empresa_id' } });
 
     if ((estado === 'aceptada' || estado === 'rechazada') && post?.estudiante_id?.usuario_id && post?.empleo_id) {
       await Notificacion.create({
@@ -603,6 +844,24 @@ app.patch('/api/ofertas/postulaciones/:postId/estado', auth, soloRoles('empresa'
         link:  `/oferta/${post.empleo_id._id}`,
       });
     }
+
+    // Si se contrata, crear entrada en historial de trabajo
+    if (estado === 'contratado' && post?.estudiante_id && post?.empleo_id) {
+      const yaExiste = await HistorialTrabajo.findOne({
+        estudiante_id: post.estudiante_id._id,
+        empleo_id: post.empleo_id._id,
+      });
+      if (!yaExiste) {
+        await HistorialTrabajo.create({
+          estudiante_id: post.estudiante_id._id,
+          empresa_id: post.empleo_id.empresa_id,
+          empleo_id: post.empleo_id._id,
+          estado: 'activo',
+          fecha_inicio: new Date(),
+        });
+      }
+    }
+
     res.json(post);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -625,7 +884,7 @@ app.post('/api/ofertas', auth, soloRoles('empresa'), async (req, res) => {
     const perfil = await PerfilEmpresa.findOne({ usuario_id: req.usuario._id });
     if (!perfil) return res.status(404).json({ error: 'Perfil de empresa no encontrado' });
 
-    const { titulo, descripcion, ubicacion, salario_min, salario_max, modalidad, especialidades_requeridas, cierre_en } = req.body;
+    const { titulo, descripcion, ubicacion, salario_min, salario_max, modalidad, especialidades_requeridas, cierre_en, puestos_disponibles } = req.body;
     if (!titulo || !descripcion || !ubicacion)
       return res.status(400).json({ error: 'Título, descripción y ubicación son requeridos' });
 
@@ -636,6 +895,7 @@ app.post('/api/ofertas', auth, soloRoles('empresa'), async (req, res) => {
       modalidad:   modalidad || 'presencial',
       especialidades_requeridas: especialidades_requeridas || [],
       cierre_en: cierre_en || null,
+      puestos_disponibles: puestos_disponibles || 1,
     });
     res.status(201).json(oferta);
   } catch (err) {
@@ -1399,6 +1659,147 @@ app.get('/api/admin/solicitudes-stats', auth, soloRoles('admin'), async (req, re
       perfilesAprobados, cvsAprobados,
       perfilesRechazados, cvsRechazados,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+//  ADMIN - MODIFICAR PERFIL DE USUARIO
+//  (permiso privilegiado para editar perfiles)
+// ─────────────────────────────────────────────
+
+app.patch('/api/admin/perfil/:usuarioId', auth, soloRoles('admin'), async (req, res) => {
+  try {
+    const usuarioTarget = await User.findById(req.params.usuarioId);
+    if (!usuarioTarget) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    // Guardar estado ANTES de los cambios
+    const antes = {
+      nombre: usuarioTarget.nombre,
+      apellido: usuarioTarget.apellido,
+    };
+
+    const { nombre, apellido, descripcion, especialidad, ciudad, telefono, linkedin, intereses, destrezas, nombre_empresa, rubro, sitio_web, region } = req.body;
+
+    // Actualizar campos de User
+    const cambiosUser = {};
+    if (nombre !== undefined) cambiosUser.nombre = nombre;
+    if (apellido !== undefined) cambiosUser.apellido = apellido;
+    if (Object.keys(cambiosUser).length > 0) {
+      await User.findByIdAndUpdate(usuarioTarget._id, cambiosUser);
+    }
+
+    // Actualizar perfil según rol
+    let perfilAntes = {};
+    let perfilDespues = {};
+
+    if (usuarioTarget.rol === 'estudiante') {
+      const perfil = await PerfilEstudiante.findOne({ usuario_id: usuarioTarget._id });
+      if (perfil) {
+        perfilAntes = {
+          descripcion: perfil.descripcion,
+          especialidad: perfil.especialidad,
+          ciudad: perfil.ciudad,
+          telefono: perfil.telefono,
+          linkedin: perfil.linkedin,
+          intereses: perfil.intereses,
+          destrezas: perfil.destrezas,
+        };
+
+        const camposPerfil = ['descripcion', 'especialidad', 'ciudad', 'telefono', 'linkedin'];
+        camposPerfil.forEach(c => { if (req.body[c] !== undefined) perfil[c] = req.body[c]; });
+        if (intereses !== undefined) perfil.intereses = typeof intereses === 'string' ? JSON.parse(intereses) : intereses;
+        if (destrezas !== undefined) perfil.destrezas = typeof destrezas === 'string' ? JSON.parse(destrezas) : destrezas;
+        await perfil.save();
+
+        perfilDespues = {
+          descripcion: perfil.descripcion,
+          especialidad: perfil.especialidad,
+          ciudad: perfil.ciudad,
+          telefono: perfil.telefono,
+          linkedin: perfil.linkedin,
+          intereses: perfil.intereses,
+          destrezas: perfil.destrezas,
+        };
+      }
+    } else if (usuarioTarget.rol === 'empresa') {
+      const perfil = await PerfilEmpresa.findOne({ usuario_id: usuarioTarget._id });
+      if (perfil) {
+        perfilAntes = {
+          nombre_empresa: perfil.nombre_empresa,
+          descripcion: perfil.descripcion,
+          rubro: perfil.rubro,
+          sitio_web: perfil.sitio_web,
+          telefono: perfil.telefono,
+          ciudad: perfil.ciudad,
+          region: perfil.region,
+        };
+
+        const camposPerfil = ['nombre_empresa', 'descripcion', 'rubro', 'sitio_web', 'telefono', 'ciudad', 'region'];
+        camposPerfil.forEach(c => { if (req.body[c] !== undefined) perfil[c] = req.body[c]; });
+        await perfil.save();
+
+        perfilDespues = {
+          nombre_empresa: perfil.nombre_empresa,
+          descripcion: perfil.descripcion,
+          rubro: perfil.rubro,
+          sitio_web: perfil.sitio_web,
+          telefono: perfil.telefono,
+          ciudad: perfil.ciudad,
+          region: perfil.region,
+        };
+      }
+    }
+
+    // Construir detalles de auditoría
+    const despues = { ...antes, ...cambiosUser };
+    const cambios = {};
+
+    // Comparar campos de User
+    Object.keys(antes).forEach(k => {
+      if (antes[k] !== despues[k]) {
+        cambios[k] = { antes: antes[k], despues: despues[k] };
+      }
+    });
+
+    // Comparar campos de perfil
+    Object.keys(perfilAntes).forEach(k => {
+      const valAntes = perfilAntes[k];
+      const valDespues = perfilDespues[k];
+      const strAntes = Array.isArray(valAntes) ? JSON.stringify(valAntes) : valAntes;
+      const strDespues = Array.isArray(valDespues) ? JSON.stringify(valDespues) : valDespues;
+      if (strAntes !== strDespues) {
+        cambios[k] = { antes: strAntes || '(vacío)', despues: strDespues || '(vacío)' };
+      }
+    });
+
+    // Registrar en auditoría
+    await AuditLog.create({
+      admin_id: req.usuario._id,
+      accion: 'modificar_perfil',
+      entidad: usuarioTarget.rol === 'estudiante' ? 'perfil_estudiante' : 'perfil_empresa',
+      entidad_id: usuarioTarget._id,
+      detalles: {
+        usuario: `${usuarioTarget.nombre} ${usuarioTarget.apellido}`,
+        email: usuarioTarget.email,
+        rol: usuarioTarget.rol,
+        cambios,
+      },
+    });
+
+    // Notificar al usuario
+    await Notificacion.create({
+      usuario_id: usuarioTarget._id,
+      tipo: 'otra',
+      titulo: 'Perfil actualizado por administrador',
+      texto: 'Un administrador ha actualizado la información de tu perfil.',
+      link: '/perfil',
+    });
+
+    // Devolver usuario actualizado
+    const usuarioActualizado = await User.findById(usuarioTarget._id).select('-password_hash');
+    res.json({ ok: true, usuario: usuarioActualizado });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

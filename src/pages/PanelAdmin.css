@@ -63,15 +63,29 @@
 .solicitud-dato-val { color:var(--texto); word-break:break-all; }
 .solicitud-motivo { font-size:12px; color:var(--rojo); background:var(--rojo-light); padding:8px 10px; border-radius:var(--radius-sm); margin-bottom:8px; }
 .solicitud-fecha { font-size:11px; color:var(--gris-2); }
-.solicitud-cv-link { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:var(--azul-light); color:var(--azul); border-radius:var(--radius-sm); font-size:13px; font-weight:500; text-decoration:none; margin-bottom:10px; }
+.solicitud-cv-link { display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:var(--azul-light); color:var(--azul); border-radius:var(--radius-sm); font-size:13px; font-weight:500; text-decoration:none; margin-bottom:10px; border:none; cursor:pointer; }
 .solicitud-cv-link:hover { background:var(--azul); color:#fff; }
-.solicitud-acciones { display:flex; gap:8px; padding-top:12px; border-top:1px solid var(--gris-borde); }
+.btn-ver-cv { width:100%; justify-content:center; }
+.solicitud-acciones { display:flex; gap:8px; padding-top:12px; border-top:1px solid var(--gris-borde); flex-wrap:wrap; }
 .btn-aprobar { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:var(--verde); color:#fff; border:none; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer; transition:opacity .2s; }
 .btn-aprobar:hover { opacity:.85; }
 .btn-editar-datos { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:var(--azul); color:#fff; border:none; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer; transition:opacity .2s; }
 .btn-editar-datos:hover { opacity:.85; }
 .btn-rechazar { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:var(--rojo); color:#fff; border:none; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer; transition:opacity .2s; }
 .btn-rechazar:hover { opacity:.85; }
+.btn-mensaje-solicitud { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; background:#F5EEF8; color:#6C3483; border:1px solid #D2B4DE; border-radius:var(--radius-sm); font-size:12px; font-weight:600; cursor:pointer; transition:opacity .2s; }
+.btn-mensaje-solicitud:hover { opacity:.85; }
+.btn-mensaje-solicitud:disabled { opacity:.5; cursor:not-allowed; }
+
+/* Fullscreen CV viewer */
+.cv-fullscreen-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:2000; display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .2s ease; }
+.cv-fullscreen-content { background:#fff; border-radius:var(--radius-lg); width:100%; max-width:900px; height:90vh; display:flex; flex-direction:column; box-shadow:0 20px 80px rgba(0,0,0,.4); }
+.cv-fullscreen-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--gris-borde); }
+.cv-fullscreen-header h3 { font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--texto); margin:0; }
+.cv-fullscreen-close { background:none; border:none; cursor:pointer; color:var(--gris-2); padding:6px; border-radius:var(--radius-sm); transition:background .2s; }
+.cv-fullscreen-close:hover { background:var(--gris-bg); color:var(--texto); }
+.cv-fullscreen-body { flex:1; overflow:hidden; }
+.cv-fullscreen-body iframe { width:100%; height:100%; border:none; border-radius:0 0 var(--radius-lg) var(--radius-lg); }
 
 /* Rechazo modal */
 .rechazo-modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:1000; display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn .15s ease; }

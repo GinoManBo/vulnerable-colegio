@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ofertasAPI, mensajesAPI } from '../api';
+import OnlineStatus from './OnlineStatus';
 import './PostulantesModal.css';
 
 const ESTADO_CFG = {
@@ -116,7 +117,10 @@ export default function PostulantesModal({ ofertaId, ofertaTitulo, onClose }) {
                     </div>
 
                     <Link to={`/perfil/${usuario._id}`} className="postulante-info-link">
-                      <h3 className="postulante-nombre">{usuario.nombre} {usuario.apellido}</h3>
+                      <h3 className="postulante-nombre">
+                        {usuario.nombre} {usuario.apellido}
+                        <OnlineStatus usuarioId={usuario._id} size={10} />
+                      </h3>
                       <p className="postulante-email">{usuario.email}</p>
                     </Link>
 

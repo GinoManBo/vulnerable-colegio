@@ -125,6 +125,26 @@ export const perfilAPI = {
 
   // Obtener mis calificaciones
   misCalificaciones: () => fetchAPI('/perfil/mis-calificaciones'),
+
+  // Eliminar CV
+  eliminarCv: () => fetchAPI('/perfil/cv', { method: 'DELETE' }),
+
+  // Obtener historial de trabajo de un estudiante
+  historialTrabajo: (usuarioId) => fetchAPI(`/perfil/historial-trabajo/${usuarioId}`),
+};
+
+// ─────────────────────────────────────────────
+//  HISTORIAL DE TRABAJO
+// ─────────────────────────────────────────────
+export const historialAPI = {
+  // Obtener estudiantes contratados por oferta
+  contratadosPorOferta: (ofertaId) => fetchAPI(`/ofertas/${ofertaId}/contratados`),
+
+  // Enviar feedback y nota a estudiante
+  enviarFeedback: (id, payload) => fetchAPI(`/historial-trabajo/${id}/feedback`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }),
 };
 
 // ─────────────────────────────────────────────
@@ -132,6 +152,13 @@ export const perfilAPI = {
 // ─────────────────────────────────────────────
 export const busquedaAPI = {
   buscar: (q) => fetchAPI(`/buscar?q=${encodeURIComponent(q)}`),
+};
+
+// ─────────────────────────────────────────────
+//  STATS PÚBLICAS
+// ─────────────────────────────────────────────
+export const statsAPI = {
+  obtener: () => fetchAPI('/stats'),
 };
 
 // ─────────────────────────────────────────────
@@ -251,6 +278,12 @@ export const adminAPI = {
     const params = new URLSearchParams(filtros);
     return fetchAPI(`/admin/auditoria?${params}`);
   },
+
+  // Modificar perfil de usuario (admin privilegiado)
+  modificarPerfil: (usuarioId, payload) => fetchAPI(`/admin/perfil/${usuarioId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  }),
 };
 
 // ─────────────────────────────────────────────

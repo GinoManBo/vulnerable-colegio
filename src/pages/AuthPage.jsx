@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authAPI } from '../api.js';
+import { authAPI, statsAPI } from '../api.js';
 import './AuthPage.css';
 
 const ROLES = [
@@ -15,7 +15,14 @@ export default function AuthPage({ onLogin }) {
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', password: '', confirmar: '', empresa: '', rubro: '' });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({ ofertasActivas: 0, empresasRegistradas: 0, estudiantesOnline: 0 });
   const navigate = useNavigate();
+
+  useEffect(() => {
+    statsAPI.obtener()
+      .then(s => setStats(s))
+      .catch(() => {});
+  }, []);
 
   function upd(k, v) {
     setForm(p => ({ ...p, [k]: v }));
@@ -115,9 +122,9 @@ export default function AuthPage({ onLogin }) {
             ))}
           </div>
           <div className="auth-left-stats">
-            <div className="auth-stat"><span className="auth-stat-n">534</span><span className="auth-stat-l">Estudiantes</span></div>
-            <div className="auth-stat"><span className="auth-stat-n">89</span><span className="auth-stat-l">Empresas</span></div>
-            <div className="auth-stat"><span className="auth-stat-n">142</span><span className="auth-stat-l">Ofertas activas</span></div>
+            <div className="auth-stat"><span className="auth-stat-n">{stats.estudiantesOnline}</span><span className="auth-stat-l">Estudiantes conectados</span></div>
+            <div className="auth-stat"><span className="auth-stat-n">{stats.empresasRegistradas}</span><span className="auth-stat-l">Empresas</span></div>
+            <div className="auth-stat"><span className="auth-stat-n">{stats.ofertasActivas}</span><span className="auth-stat-l">Ofertas activas</span></div>
           </div>
         </div>
       </div>
