@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { adminAPI, fetchAPI } from '../api';
+import { adminAPI, fetchAPI, getMediaUrl } from '../api';
 import './PanelAdmin.css';
 
 const TABS = [
@@ -276,6 +276,20 @@ export default function PanelAdmin({ usuario }) {
     } catch(e) { setError(e.message); }
   }
 
+  async function enviarBienvenida() {
+    if (!confirm('¿Enviar mensaje de bienvenida a todos los usuarios que aún no lo han recibido?')) return;
+    setEnviandoBienvenida(true);
+    setBienvenidaResult(null);
+    try {
+      const data = await fetchAPI('/admin/enviar-bienvenida', { method: 'POST' });
+      setBienvenidaResult(data);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setEnviandoBienvenida(false);
+    }
+  }
+
   async function enviarMensajeDesdeSolicitud(solicitud) {
     if (!solicitud?.usuario_id?._id || enviandoMsgCv) return;
     setEnviandoMsgCv(true);
@@ -410,6 +424,24 @@ export default function PanelAdmin({ usuario }) {
                     activo={config.aprobacion_auto_cv}
                     onChange={v => toggleConfig('aprobacion_auto_cv', v)}
                   />
+                </div>
+                <div style={{marginTop:14,paddingTop:14,borderTop:'1px solid var(--borde)'}}>
+                  <button
+                    className={`btn-primary ${enviandoBienvenida?'loading':''}`}
+                    style={{width:'100%',justifyContent:'center'}}
+                    onClick={enviarBienvenida}
+                    disabled={enviandoBienvenida}
+                  >
+                    {enviandoBienvenida
+                      ? 'Enviando...'
+                      : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight:6}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Enviar bienvenida masiva</>
+                    }
+                  </button>
+                  {bienvenidaResult && (
+                    <p style={{fontSize:12,color:'var(--verde)',marginTop:8,textAlign:'center'}}>
+                      Enviados: {bienvenidaResult.enviados ?? 0} · Total: {bienvenidaResult.total ?? 0}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -756,7 +788,7 @@ export default function PanelAdmin({ usuario }) {
               </button>
             </div>
             <div className="cv-fullscreen-body">
-              <iframe src={`http://localhost:5000${cvPreviewUrl}`} title="Vista previa del CV" />
+              <iframe src={getMediaUrl(cvPreviewUrl)} title="Vista previa del CV" />
             </div>
           </div>
         </div>

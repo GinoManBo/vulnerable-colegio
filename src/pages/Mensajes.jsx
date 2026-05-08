@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { mensajesAPI } from '../api';
+import { mensajesAPI, getMediaUrl } from '../api';
 import OnlineStatus from '../components/OnlineStatus';
 import './Mensajes.css';
 
@@ -21,6 +21,10 @@ export default function Mensajes({ usuario }) {
   const [cargMsgs,      setCargMsgs]      = useState(false);
   const [enviando,      setEnviando]      = useState(false);
   const [error,         setError]         = useState('');
+  const [miembrosModal, setMiembrosModal] = useState(false);
+  const [miembros,      setMiembros]      = useState([]);
+  const [cargMiembros,  setCargMiembros]  = useState(false);
+  const [menuGrupo,     setMenuGrupo]     = useState(false);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
   const location = useLocation();
@@ -139,9 +143,33 @@ export default function Mensajes({ usuario }) {
     } catch(e) { setError(e.message); }
   }
 
-  const convsFiltradas = convs.filter(c =>
-    c.participante?.nombre?.toLowerCase().includes(busqueda.toLowerCase())
-  );
+  async function cargarMiembros(convId) {
+    setCargMiembros(true);
+    try {
+      const data = await mensajesAPI.miembros(convId);
+      setMiembros(data.participantes || []);
+    } catch (e) { setError(e.message); }
+    finally { setCargMiembros(false); }
+  }
+
+  async function salirDelGrupo(convId) {
+    if (!confirm('¿Salir de este grupo? No recibirás más mensajes de esta oferta.')) return;
+    try {
+      await mensajesAPI.salirDelGrupo(convId);
+      setConvs(p => p.filter(c => c._id !== convId));
+      setMsgs(p => { const n = { ...p }; delete n[convId]; return n; });
+      if (activa === convId) setActiva(null);
+      setMenuGrupo(false);
+    } catch (e) { setError(e.message); }
+  }
+
+  const convsFiltradas = convs.filter(c => {
+    const term = busqueda.toLowerCase();
+    if (c.tipo === 'grupal') {
+      return c.nombre?.toLowerCase().includes(term);
+    }
+    return c.participante?.nombre?.toLowerCase().includes(term);
+  });
 
   // Encontrar índice del primer mensaje no leído
   const primerNoLeidoIdx = mensajes.findIndex(m => {
@@ -169,13 +197,25 @@ export default function Mensajes({ usuario }) {
             {!cargConvs && convsFiltradas.length===0 && (
               <p className="msgs-empty-list">Sin conversaciones aún.<br/>Pulsa + para empezar una.</p>
             )}
-            {convsFiltradas.map(c=>(
+            {convsFiltradas.map(c=>{
+              const esGrupo = c.tipo === 'grupal';
+              return (
               <button key={c._id} className={`msgs-conv-item ${activa===c._id?'activa':''}`} onClick={()=>seleccionar(c._id)}>
-                <div className={`msgs-conv-av ${c.participante?.rol??'estudiante'}`}>{c.participante?.nombre?.[0]??'?'}</div>
+                {esGrupo ? (
+                  <div className="msgs-conv-av" style={{background:'rgba(99,102,241,0.15)',color:'#818CF8',overflow:'hidden'}}>
+                    {c.foto_url ? <img src={getMediaUrl(c.foto_url)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    )}
+                  </div>
+                ) : (
+                  <div className={`msgs-conv-av ${c.participante?.rol??'estudiante'}`}>
+                    {c.participante?.foto ? <img src={getMediaUrl(c.participante.foto)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : (c.participante?.nombre?.[0]??'?')}
+                  </div>
+                )}
                 <div className="msgs-conv-info">
                   <div className="msgs-conv-top">
-                    <span className="msgs-conv-nombre">{c.participante?.nombre}</span>
-                    <OnlineStatus usuarioId={c.participante?._id} size={8} />
+                    <span className="msgs-conv-nombre">{esGrupo ? c.nombre : c.participante?.nombre}</span>
+                    {!esGrupo && <OnlineStatus usuarioId={c.participante?._id} size={8} style={{ marginLeft: 5 }} />}
                     <span className="msgs-conv-tiempo">{c.ultimo_mensaje_en ? fmt(c.ultimo_mensaje_en) : ''}</span>
                   </div>
                   <div className="msgs-conv-bottom">
@@ -184,7 +224,7 @@ export default function Mensajes({ usuario }) {
                   </div>
                 </div>
               </button>
-            ))}
+            )})}
           </div>
         </div>
 
@@ -199,18 +239,51 @@ export default function Mensajes({ usuario }) {
           ) : (
             <>
               <div className="msgs-chat-header">
-                <div className={`msgs-conv-av ${convActiva.participante?.rol}`} style={{width:38,height:38,fontSize:15}}>
-                  {convActiva.participante?.nombre?.[0]??'?'}
-                </div>
-                <div className="msgs-chat-header-info">
-                  <Link to={`/perfil/${convActiva.participante?._id}`} className="msgs-chat-nombre">
-                    {convActiva.participante?.nombre}
-                    <OnlineStatus usuarioId={convActiva.participante?._id} size={10} />
-                  </Link>
-                  <span className={`badge ${convActiva.participante?.rol==='empresa'?'badge-azul':convActiva.participante?.rol==='admin'?'badge-naranja':'badge-verde'}`} style={{fontSize:10}}>
-                    {convActiva.participante?.rol === 'admin' ? 'Administrador' : convActiva.participante?.rol}
-                  </span>
-                </div>
+                {convActiva.tipo === 'grupal' ? (
+                  <>
+                    <div className="msgs-conv-av" style={{width:38,height:38,fontSize:15,background:'rgba(99,102,241,0.15)',color:'#818CF8',overflow:'hidden'}}>
+                      {convActiva.foto_url ? <img src={getMediaUrl(convActiva.foto_url)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : (
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      )}
+                    </div>
+                    <div className="msgs-chat-header-info">
+                      <button
+                        className="msgs-chat-nombre"
+                        onClick={() => { cargarMiembros(convActiva._id); setMiembrosModal(true); }}
+                        style={{background:'none',border:'none',padding:0,cursor:'pointer',color:'var(--texto)'}}
+                      >
+                        {convActiva.nombre}
+                      </button>
+                      <span className="badge badge-azul" style={{fontSize:10}}>Grupo</span>
+                    </div>
+                    <div style={{position:'relative',marginLeft:'auto'}}>
+                      <button className="msgs-act-btn" onClick={()=>setMenuGrupo(p=>!p)} title="Opciones">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                      </button>
+                      {menuGrupo && (
+                        <div className="msgs-grupo-menu">
+                          <button onClick={()=>{ cargarMiembros(convActiva._id); setMiembrosModal(true); setMenuGrupo(false); }}>Ver miembros</button>
+                          <button onClick={()=>salirDelGrupo(convActiva._id)} style={{color:'var(--rojo)'}}>Salir del grupo</button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={`msgs-conv-av ${convActiva.participante?.rol}`} style={{width:38,height:38,fontSize:15}}>
+                      {convActiva.participante?.foto ? <img src={getMediaUrl(convActiva.participante.foto)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : (convActiva.participante?.nombre?.[0]??'?')}
+                    </div>
+                    <div className="msgs-chat-header-info">
+                      <Link to={`/perfil/${convActiva.participante?._id}`} className="msgs-chat-nombre">
+                        {convActiva.participante?.nombre}
+                        <OnlineStatus usuarioId={convActiva.participante?._id} size={10} style={{ marginLeft: 5 }} />
+                      </Link>
+                      <span className={`badge ${convActiva.participante?.rol==='empresa'?'badge-azul':convActiva.participante?.rol==='admin'?'badge-naranja':'badge-verde'}`} style={{fontSize:10}}>
+                        {convActiva.participante?.rol === 'admin' ? 'Administrador' : convActiva.participante?.rol}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="msgs-chat-body">
@@ -226,6 +299,9 @@ export default function Mensajes({ usuario }) {
                   // Mostrar separador de "no leídos" antes del primer mensaje no leído
                   const mostrarSepNoLeidos = !esYo && !m.leido && (i === 0 || mensajes[i-1]?.leido);
 
+                  const remitenteNombre = m.remitente_id?.nombre || '?';
+                  const remitenteRol    = m.remitente_id?.rol || 'estudiante';
+
                   return (
                     <div key={m._id}>
                       {tsActual !== tsAnterior && (
@@ -240,11 +316,14 @@ export default function Mensajes({ usuario }) {
                       )}
                       <div className={`msgs-msg-row ${esYo?'yo':''}`}>
                         {!esYo && (
-                          <div className={`msgs-msg-av ${convActiva.participante?.rol}`}>
-                            {convActiva.participante?.nombre?.[0]??'?'}
+                          <div className={`msgs-msg-av ${remitenteRol}`} title={remitenteNombre}>
+                            {m.remitente_id?.foto ? <img src={getMediaUrl(m.remitente_id.foto)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : (remitenteNombre[0]??'?')}
                           </div>
                         )}
                         <div className={`msgs-burbuja ${esYo?'yo':''}`}>
+                          {convActiva.tipo === 'grupal' && !esYo && (
+                            <span className="msgs-grupo-remitente">{remitenteNombre}</span>
+                          )}
                           <p>{m.contenido}</p>
                           <div className={`msgs-ts-row ${esYo?'yo':''}`}>
                             <span className="msgs-ts">{fmt(m.enviado_en)}</span>
@@ -285,6 +364,34 @@ export default function Mensajes({ usuario }) {
           )}
         </div>
       </div>
+
+      {miembrosModal && (
+        <div className="modal-overlay" onClick={()=>setMiembrosModal(false)}>
+          <div className="modal-box" onClick={e=>e.stopPropagation()} style={{maxWidth:360}}>
+            <div className="modal-header">
+              <h3>Miembros del grupo</h3>
+              <button className="fp-close" onClick={()=>setMiembrosModal(false)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            {cargMiembros && <p style={{fontSize:13,color:'var(--gris-2)',textAlign:'center',padding:20}}>Cargando...</p>}
+            {!cargMiembros && miembros.length===0 && <p style={{fontSize:13,color:'var(--gris-2)',textAlign:'center',padding:20}}>Sin miembros.</p>}
+            {!cargMiembros && miembros.map(m=> (
+              <div key={m._id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0',borderBottom:'1px solid var(--borde)'}}>
+                <div className={`msgs-conv-av ${m.rol??'estudiante'}`} style={{width:32,height:32,fontSize:13}}>
+                  {m.foto ? <img src={getMediaUrl(m.foto)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : (m.nombre?.[0]??'?')}
+                </div>
+                <div>
+                  <p style={{fontSize:14,fontWeight:600,color:'var(--texto)',margin:0}}>{m.nombre} {m.apellido}</p>
+                  <span className={`badge ${m.rol==='empresa'?'badge-azul':m.rol==='admin'?'badge-naranja':'badge-verde'}`} style={{fontSize:10}}>
+                    {m.rol === 'admin' ? 'Administrador' : m.rol}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {nuevaModal && (
         <div className="modal-overlay" onClick={()=>setNuevaModal(false)}>

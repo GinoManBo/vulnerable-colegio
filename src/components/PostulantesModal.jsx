@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ofertasAPI, mensajesAPI } from '../api';
+import { ofertasAPI, mensajesAPI, getMediaUrl } from '../api';
 import OnlineStatus from './OnlineStatus';
 import './PostulantesModal.css';
 
@@ -107,7 +107,7 @@ export default function PostulantesModal({ ofertaId, ofertaTitulo, onClose }) {
                       <Link to={`/perfil/${usuario._id}`} className="postulante-foto-link">
                         <div className="postulante-foto">
                           {fotoUrl ? (
-                            <img src={fotoUrl} alt={usuario.nombre} />
+                            <img src={getMediaUrl(fotoUrl)} alt={usuario.nombre} />
                           ) : (
                             <span>{usuario.nombre?.[0] ?? 'E'}</span>
                           )}
@@ -119,7 +119,7 @@ export default function PostulantesModal({ ofertaId, ofertaTitulo, onClose }) {
                     <Link to={`/perfil/${usuario._id}`} className="postulante-info-link">
                       <h3 className="postulante-nombre">
                         {usuario.nombre} {usuario.apellido}
-                        <OnlineStatus usuarioId={usuario._id} size={10} />
+                        <OnlineStatus usuarioId={usuario._id} size={10} style={{ marginLeft: 5 }} />
                       </h3>
                       <p className="postulante-email">{usuario.email}</p>
                     </Link>

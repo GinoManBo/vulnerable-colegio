@@ -150,25 +150,33 @@ const CalificacionTrabajo = model("CalificacionTrabajo", calificacionTrabajoSche
 // ─────────────────────────────────────────────
 const conversacionSchema = new Schema(
   {
-    // Array de exactamente 2 usuarios participantes
+    // Array de participantes (2 para privadas, N+1 para grupales)
     participantes: {
       type: [{ type: Types.ObjectId, ref: "User" }],
       validate: {
-        validator: (v) => v.length === 2,
-        message: "Una conversación debe tener exactamente 2 participantes.",
+        validator: (v) => v.length >= 2,
+        message: "Una conversación debe tener al menos 2 participantes.",
       },
     },
+    tipo: { type: String, enum: ['privada', 'grupal'], default: 'privada' },
+    nombre: { type: String, maxlength: 120, default: null },       // nombre del grupo (ej: título de la oferta)
+    oferta_id: { type: Types.ObjectId, ref: "PublicacionEmpleo", default: null },  // para grupos vinculados a ofertas
+    creador_id: { type: Types.ObjectId, ref: "User", default: null },
+    foto_url: { type: String, default: null },  // logo de la empresa para grupos de oferta
     ultimo_mensaje_en: { type: Date, default: null },
     ultimo_mensaje_preview: { type: String, maxlength: 100, default: null },
   },
   { timestamps: { createdAt: "creado_en" } }
 );
 
-// Garantiza que no se creen conversaciones duplicadas entre el mismo par
+// Garantiza que no se creen conversaciones privadas duplicadas entre el mismo par
 conversacionSchema.index(
-  { "participantes.0": 1, "participantes.1": 1 },
-  { unique: true }
+  { "participantes.0": 1, "participantes.1": 1, tipo: 1 },
+  { unique: true, partialFilterExpression: { tipo: 'privada' } }
 );
+
+// Index para buscar grupos de una oferta rápidamente
+conversacionSchema.index({ oferta_id: 1, tipo: 1 });
 
 const Conversacion = model("Conversacion", conversacionSchema);
 

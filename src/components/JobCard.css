@@ -184,3 +184,13 @@
   background: linear-gradient(135deg, var(--naranja) 0%, #B45309 100%);
   box-shadow: 0 2px 8px rgba(249, 115, 22, 0.15);
 }
+
+.btn-aceptado {
+  background: linear-gradient(135deg, #1DB67A 0%, #0D6E47 100%);
+  box-shadow: 0 2px 8px rgba(29, 182, 122, 0.25);
+}
+
+.btn-rechazado {
+  background: linear-gradient(135deg, #EF4444 0%, #991B1B 100%);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
+}

@@ -7,10 +7,11 @@ import './HomePage.css';
 const MODALIDADES = ['todos', 'presencial', 'remoto', 'híbrido'];
 const ESPECIALIDADES = ['Todas', 'Electricidad', 'Mecatrónica', 'Redes', 'Construcción', 'Automatización'];
 
-
-
-function IcoFilter() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>; }
-function IcoSort()   { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>; }
+function IcoFilter() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>; }
+function IcoSort()   { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="9" y2="18"/></svg>; }
+function IcoBriefcase() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>; }
+function IcoBuilding() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><path d="M9 21v-6h6v6"/></svg>; }
+function IcoUsers() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>; }
 
 export default function HomePage() {
   const [modalidad, setModalidad] = useState('todos');
@@ -19,9 +20,9 @@ export default function HomePage() {
   const [cargando, setCargando] = useState(true);
   const [ofertas, setOfertas] = useState([]);
   const [misPostulacionesIds, setMisPostulacionesIds] = useState(new Set());
+  const [estadoPostulaciones, setEstadoPostulaciones] = useState({});
   const [stats, setStats] = useState({ ofertasActivas: 0, empresasRegistradas: 0, estudiantesOnline: 0 });
 
-  // Obtener usuario del localStorage
   const usuarioJson = localStorage.getItem('usuario');
   const usuario = usuarioJson ? JSON.parse(usuarioJson) : null;
 
@@ -47,26 +48,38 @@ export default function HomePage() {
     if (usuario?.rol !== 'estudiante') return;
     perfilAPI.misPostulaciones()
       .then(postulaciones => {
-        const postuladosIds = new Set(
-          (postulaciones || []).map(p => p.empleo_id?._id?.toString() || p.empleo_id?.toString())
-        );
-        setMisPostulacionesIds(postuladosIds);
+        const ids = new Set();
+        const estados = {};
+        (postulaciones || []).forEach(p => {
+          const ofertaId = p.empleo_id?._id?.toString() || p.empleo_id?.toString();
+          if (ofertaId) {
+            ids.add(ofertaId);
+            estados[ofertaId] = p.estado;
+          }
+        });
+        setMisPostulacionesIds(ids);
+        setEstadoPostulaciones(estados);
       })
       .catch(() => {});
   }, [usuario]);
 
-  // Escuchar evento para recargar postulaciones (ej. después de retirar)
   useEffect(() => {
     async function handleActualizar() {
       if (usuario?.rol !== 'estudiante') return;
       try {
         const postulaciones = await perfilAPI.misPostulaciones();
-        const postuladosIds = new Set(
-          (postulaciones || []).map(p => p.empleo_id?._id?.toString() || p.empleo_id?.toString())
-        );
-        setMisPostulacionesIds(postuladosIds);
-      } catch (err) {
-      }
+        const ids = new Set();
+        const estados = {};
+        (postulaciones || []).forEach(p => {
+          const ofertaId = p.empleo_id?._id?.toString() || p.empleo_id?.toString();
+          if (ofertaId) {
+            ids.add(ofertaId);
+            estados[ofertaId] = p.estado;
+          }
+        });
+        setMisPostulacionesIds(ids);
+        setEstadoPostulaciones(estados);
+      } catch (err) {}
     }
     window.addEventListener('actualizar-postulaciones', handleActualizar);
     return () => window.removeEventListener('actualizar-postulaciones', handleActualizar);
@@ -82,98 +95,142 @@ export default function HomePage() {
 
   return (
     <div className="homepage">
-      <div className="homepage-hero">
-        <div className="homepage-hero-inner">
-          <h1 className="hero-titulo">Encuentra tu primera oportunidad laboral</h1>
-          <p className="hero-subtitulo">Conectamos egresados técnicos del Bío-Bío con empresas que valoran tu formación</p>
-          <div className="hero-stats">
-            <div className="hero-stat"><span className="hero-stat-num">{stats.ofertasActivas}</span><span className="hero-stat-label">Ofertas activas</span></div>
-            <div className="hero-stat-div" />
-            <div className="hero-stat"><span className="hero-stat-num">{stats.empresasRegistradas}</span><span className="hero-stat-label">Empresas registradas</span></div>
-            <div className="hero-stat-div" />
-            <div className="hero-stat"><span className="hero-stat-num">{stats.estudiantesOnline}</span><span className="hero-stat-label">Estudiantes conectados</span></div>
+      {/* Hero */}
+      <div className="hp-hero">
+        <div className="hp-hero-bg" />
+        <div className="hp-hero-radial" />
+        <div className="hp-hero-grid" />
+
+        <div className="hp-container" style={{ animation: 'fadeInUp 0.6s ease both' }}>
+          <div className="hp-hero-head">
+            <div className="hp-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
+              Plataforma de empleo técnico
+            </div>
+
+            <h1 className="hp-hero-title">
+              Encuentra tu <span className="hp-gradient">primera oportunidad</span> laboral
+            </h1>
+
+            <p className="hp-hero-desc">
+              Conectamos egresados técnicos del Bío-Bío con empresas que valoran tu formación. Tu futuro comienza aquí.
+            </p>
+          </div>
+
+          {/* Stats */}
+          <div className="hp-stats">
+            <div className="hp-stat" style={{ animation: 'fadeInUp 0.5s ease 0.2s both' }}>
+              <div className="hp-stat-ico"><IcoBriefcase /></div>
+              <div>
+                <div className="hp-stat-num">{stats.ofertasActivas}</div>
+                <div className="hp-stat-label">Ofertas activas</div>
+              </div>
+            </div>
+            <div className="hp-stat" style={{ animation: 'fadeInUp 0.5s ease 0.3s both' }}>
+              <div className="hp-stat-ico"><IcoBuilding /></div>
+              <div>
+                <div className="hp-stat-num">{stats.empresasRegistradas}</div>
+                <div className="hp-stat-label">Empresas registradas</div>
+              </div>
+            </div>
+            <div className="hp-stat" style={{ animation: 'fadeInUp 0.5s ease 0.4s both' }}>
+              <div className="hp-stat-ico"><IcoUsers /></div>
+              <div>
+                <div className="hp-stat-num">{stats.estudiantesOnline}</div>
+                <div className="hp-stat-label">Estudiantes conectados</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="homepage-content">
-        <div className="homepage-feed">
-          <div className="feed-toolbar">
-            <div className="feed-toolbar-left">
-              <IcoFilter />
-              <span className="feed-count">{ofertasFiltradas.length} ofertas</span>
-            </div>
-            <div className="feed-toolbar-right">
-              <div className="filtro-chips">
-                {MODALIDADES.map(m => (
+      {/* Content */}
+      <div className="hp-container hp-content">
+        <div className="hp-layout">
+          {/* Feed */}
+          <div className="hp-feed">
+            {/* Toolbar sticky */}
+            <div className="hp-toolbar" style={{ animation: 'fadeInUp 0.4s ease 0.4s both' }}>
+              <div className="hp-toolbar-top">
+                <div className="hp-toolbar-left">
+                  <IcoFilter />
+                  <span className="hp-count">{ofertasFiltradas.length} ofertas</span>
+                </div>
+                <div className="hp-toolbar-right">
+                  <div className="hp-modalidad-chips">
+                    {MODALIDADES.map(m => (
+                      <button
+                        key={m}
+                        className={`hp-chip ${modalidad === m ? 'active' : ''}`}
+                        onClick={() => setModalidad(m)}
+                      >
+                        {m.charAt(0).toUpperCase() + m.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="hp-ordenar">
+                    <IcoSort />
+                    <select value={ordenar} onChange={e => setOrdenar(e.target.value)}>
+                      <option value="reciente">Más reciente</option>
+                      <option value="salario">Mayor salario</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="hp-especialidades">
+                {ESPECIALIDADES.map(e => (
                   <button
-                    key={m}
-                    className={`filtro-chip ${modalidad === m ? 'activo' : ''}`}
-                    onClick={() => setModalidad(m)}
+                    key={e}
+                    className={`hp-pill ${especialidad === e ? 'active' : ''}`}
+                    onClick={() => setEspecialidad(e)}
                   >
-                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                    {e}
                   </button>
                 ))}
               </div>
-              <select
-                className="ordenar-select"
-                value={ordenar}
-                onChange={e => setOrdenar(e.target.value)}
-              >
-                <option value="reciente">Más reciente</option>
-                <option value="salario">Mayor salario</option>
-              </select>
+            </div>
+
+            {/* Lista */}
+            <div className="hp-lista">
+              {cargando ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="hp-skeleton card" style={{ animationDelay: `${i * 0.1}s` }}>
+                    <div className="hp-skel-header">
+                      <div className="hp-skel-logo" />
+                      <div className="hp-skel-lines">
+                        <div className="hp-skel-line" style={{ width: '60%' }} />
+                        <div className="hp-skel-line" style={{ width: '40%' }} />
+                      </div>
+                    </div>
+                    <div className="hp-skel-line" style={{ width: '100%' }} />
+                    <div className="hp-skel-line" style={{ width: '80%' }} />
+                  </div>
+                ))
+              ) : ofertasFiltradas.length === 0 ? (
+                <div className="hp-empty">
+                  <div className="hp-empty-ico">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  </div>
+                  <p>No hay ofertas con los filtros seleccionados</p>
+                  <button className="btn-secondary" onClick={() => { setModalidad('todos'); setEspecialidad('Todas'); }}>
+                    Limpiar filtros
+                  </button>
+                </div>
+              ) : (
+                ofertasFiltradas.map((o, i) => (
+                  <div key={o._id} style={{ animation: `fadeInUp 0.35s ease both`, animationDelay: `${i * 0.05}s` }}>
+                    <JobCard oferta={o} destacada={o.destacada} usuario={usuario} yaPostulado={misPostulacionesIds.has(o._id?.toString())} estadoPostulacion={estadoPostulaciones[o._id?.toString()]} />
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
-          <div className="especialidad-chips">
-            {ESPECIALIDADES.map(e => (
-              <button
-                key={e}
-                className={`especialidad-chip ${especialidad === e ? 'activo' : ''}`}
-                onClick={() => setEspecialidad(e)}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-
-          <div className="feed-lista">
-            {cargando ? (
-              Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="job-skeleton card" style={{ animationDelay: `${i * 0.1}s` }}>
-                  <div className="skeleton-header">
-                    <div className="skeleton-logo skeleton-pulse" />
-                    <div className="skeleton-lines">
-                      <div className="skeleton-line skeleton-pulse" style={{ width: '60%' }} />
-                      <div className="skeleton-line skeleton-pulse" style={{ width: '40%' }} />
-                    </div>
-                  </div>
-                  <div className="skeleton-line skeleton-pulse" style={{ width: '100%', height: 10 }} />
-                  <div className="skeleton-line skeleton-pulse" style={{ width: '80%', height: 10 }} />
-                </div>
-              ))
-            ) : ofertasFiltradas.length === 0 ? (
-              <div className="feed-empty">
-                <div className="feed-empty-icon">
-                  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--gris-2)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                </div>
-                <p>No hay ofertas con los filtros seleccionados</p>
-                <button className="btn-secondary" onClick={() => { setModalidad('todos'); setEspecialidad('Todas'); }}>
-                  Limpiar filtros
-                </button>
-              </div>
-            ) : (
-              ofertasFiltradas.map((o, i) => (
-                <div key={o._id} style={{ animation: `fadeInUp 0.3s ease both`, animationDelay: `${i * 0.06}s` }}>
-                  <JobCard oferta={o} destacada={o.destacada} usuario={usuario} yaPostulado={misPostulacionesIds.has(o._id?.toString())} />
-                </div>
-              ))
-            )}
+          {/* Sidebar */}
+          <div className="hp-sidebar" style={{ animation: 'fadeInUp 0.5s ease 0.5s both' }}>
+            <ProfileSidebar onFiltrar={setEspecialidad} />
           </div>
         </div>
-
-        <ProfileSidebar />
       </div>
     </div>
   );

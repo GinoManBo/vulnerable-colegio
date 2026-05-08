@@ -2,9 +2,10 @@
   position: sticky;
   top: 0;
   z-index: 100;
-  background: var(--azul);
+  background: rgba(11,15,25,0.85);
+  backdrop-filter: blur(12px);
   height: var(--nav-h);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 .navbar-pending-banner {
@@ -13,8 +14,8 @@
   gap: 10px;
   padding: 10px 24px;
   background: var(--naranja-light);
-  border-bottom: 1px solid var(--naranja);
-  color: #B45309;
+  border-bottom: 1px solid rgba(245,158,11,0.3);
+  color: #FBBF24;
   font-size: 13px;
   font-weight: 500;
   position: sticky;
@@ -43,7 +44,8 @@
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: var(--verde);
+  background: rgba(99,102,241,0.15);
+  border: 1px solid rgba(99,102,241,0.25);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -152,7 +154,7 @@
   flex-shrink: 0;
 }
 .search-item-avatar.empresa    { background: var(--azul-light); color: var(--azul); }
-.search-item-avatar.estudiante { background: var(--verde-light); color: #0D6E47; }
+.search-item-avatar.estudiante { background: var(--verde-light); color: #34D399; }
 .search-item-nombre { font-size: 14px; font-weight: 500; }
 .search-item-sub    { font-size: 12px; color: var(--gris-2); }
 
@@ -275,8 +277,8 @@
 }
 .notif-item:last-child { border-bottom: none; }
 .notif-item:hover { background: var(--gris-bg); }
-.notif-item.no-leida { background: #F0F6FF; }
-.notif-item.no-leida:hover { background: #E8F0FA; }
+.notif-item.no-leida { background: rgba(99,102,241,0.06); }
+.notif-item.no-leida:hover { background: rgba(99,102,241,0.1); }
 .notif-dot {
   width: 8px;
   height: 8px;

@@ -14,6 +14,14 @@ function getApiUrl() {
 
 const API_URL = getApiUrl();
 
+// Helper para obtener URL absoluta de imágenes/archivos subidos
+export function getMediaUrl(url) {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  const base = API_URL.replace('/api', '');
+  return `${base}${url}`;
+}
+
 // Helper para hacer fetch
 export async function fetchAPI(url, options = {}) {
   const headers = {
@@ -221,6 +229,17 @@ export const mensajesAPI = {
 
   // Marcar mensaje como leído
   marcarLeido: (mensajeId) => fetchAPI(`/mensajes/${mensajeId}/leido`, {
+    method: 'PATCH',
+  }),
+
+  // Obtener miembros de una conversación grupal
+  miembros: (conversacionId) => fetchAPI(`/mensajes/${conversacionId}/miembros`),
+
+  // Obtener conversación grupal de una oferta
+  grupoOferta: (ofertaId) => fetchAPI(`/mensajes/grupo-oferta/${ofertaId}`),
+
+  // Salir de una conversación grupal
+  salirDelGrupo: (conversacionId) => fetchAPI(`/mensajes/${conversacionId}/salir`, {
     method: 'PATCH',
   }),
 };

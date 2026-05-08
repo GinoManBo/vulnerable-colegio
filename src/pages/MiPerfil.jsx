@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { perfilAPI, ofertasAPI, fetchAPI, historialAPI } from '../api.js';
+import { perfilAPI, ofertasAPI, fetchAPI, historialAPI, getMediaUrl } from '../api.js';
 import OnlineStatus from '../components/OnlineStatus';
 import './MiPerfil.css';
 
@@ -125,10 +125,11 @@ export default function MiPerfil({ usuario }) {
         setTmp(datosCompletos);
         setDestrezas(perfil.destrezas || []);
         setIntereses(perfil.intereses || []);
-        setFotoPreview(perfil.foto_perfil_url || perfil.logo_url || null);
+        const fotoGuardada2 = perfil.foto_perfil_url || perfil.logo_url || null;
+        setFotoPreview(getMediaUrl(fotoGuardada2));
         if (perfil.curriculum_url) {
           setCvUrl(perfil.curriculum_url);
-          setCvPreview(`http://localhost:5000${perfil.curriculum_url}`);
+          setCvPreview(getMediaUrl(perfil.curriculum_url));
           setCurriculum('curriculum.pdf');
         }
         setPerfilPendiente(res.perfilPendiente || false);
@@ -175,7 +176,8 @@ export default function MiPerfil({ usuario }) {
           setTmp(datosCompletos);
           setDestrezas(perfil.destrezas || []);
           setIntereses(perfil.intereses || []);
-          setFotoPreview(perfil.foto_perfil_url || perfil.logo_url || null);
+        const fotoGuardada = perfil.foto_perfil_url || perfil.logo_url || null;
+        setFotoPreview(getMediaUrl(fotoGuardada));
           setPerfilPendiente(false);
         })
         .catch(() => {});
@@ -211,6 +213,31 @@ export default function MiPerfil({ usuario }) {
     if (!file) return;
     setFoto(file);
     setFotoPreview(URL.createObjectURL(file));
+
+    // Subir foto inmediatamente al servidor
+    const formData = new FormData();
+    formData.append('foto', file);
+
+    fetch('http://localhost:5000/api/perfil/foto', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      body: formData,
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.ok) {
+          const fullUrl = getMediaUrl(data.fotoUrl);
+          setFotoPreview(fullUrl);
+          setFoto(null);
+          // Actualizar localStorage para reflejar cambio en navbar
+          const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+          localStorage.setItem('usuario', JSON.stringify({ ...u, foto: fullUrl }));
+          window.dispatchEvent(new Event('perfil-actualizado'));
+        } else {
+          alert(data.error || 'Error al subir la foto');
+        }
+      })
+      .catch(() => alert('Error al subir la foto'));
   }
 
   function handleCurriculum(e) {
@@ -237,7 +264,7 @@ export default function MiPerfil({ usuario }) {
       .then(data => {
         if (data.ok) {
           setCvUrl(data.cvUrl);
-          setCvPreview(`http://localhost:5000${data.cvUrl}`);
+          setCvPreview(getMediaUrl(data.cvUrl));
           setCurriculum(file.name);
           if (data.pendiente) setPerfilPendiente(true);
         } else {

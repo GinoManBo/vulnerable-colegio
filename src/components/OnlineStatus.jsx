@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchAPI } from '../api';
 
-export default function OnlineStatus({ usuarioId, size = 10 }) {
+export default function OnlineStatus({ usuarioId, size = 10, style }) {
   const [enLinea, setEnLinea] = useState(false);
 
   useEffect(() => {
@@ -31,6 +31,7 @@ export default function OnlineStatus({ usuarioId, size = 10 }) {
         display: 'inline-block',
         flexShrink: 0,
         boxShadow: enLinea ? '0 0 4px rgba(29,182,122,.5)' : 'none',
+        ...style,
       }}
     />
   );

@@ -71,6 +71,24 @@ export default function App() {
     setLoading(false);
   }, []);
 
+  // Escuchar actualización de perfil (foto, etc.) para refrescar usuario global
+  useEffect(() => {
+    function handlePerfilActualizado() {
+      authAPI.verificar()
+        .then(res => {
+          if (res) {
+            const u = JSON.parse(localStorage.getItem('usuario') || '{}');
+            const usuarioActualizado = { ...u, ...res };
+            setUsuario(usuarioActualizado);
+            localStorage.setItem('usuario', JSON.stringify(usuarioActualizado));
+          }
+        })
+        .catch(() => {});
+    }
+    window.addEventListener('perfil-actualizado', handlePerfilActualizado);
+    return () => window.removeEventListener('perfil-actualizado', handlePerfilActualizado);
+  }, []);
+
   function homeSegunRol() {
     if (!usuario) return <Navigate to="/acceso" replace />;
     if (usuario.rol === 'empresa') return <VistaEmpresa usuario={usuario} />;

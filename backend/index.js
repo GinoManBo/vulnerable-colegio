@@ -56,6 +56,15 @@ const upload = multer({
   },
 });
 
+const uploadImage = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Solo se permiten archivos de imagen'));
+  },
+});
+
 // CORS: permitir múltiples orígenes (desarrollo + producción)
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
   .split(',')
@@ -82,6 +91,22 @@ app.use(express.static(distPath));
 app.use('/uploads', express.static(uploadsDir));
 
 connectDB();
+
+// Helper para obtener foto de perfil de un usuario
+async function getUserFoto(usuarioId, rol) {
+  try {
+    if (rol === 'estudiante') {
+      const perfil = await PerfilEstudiante.findOne({ usuario_id: usuarioId }).select('foto_perfil_url');
+      return perfil?.foto_perfil_url || null;
+    } else if (rol === 'empresa') {
+      const perfil = await PerfilEmpresa.findOne({ usuario_id: usuarioId }).select('logo_url');
+      return perfil?.logo_url || null;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 // ─────────────────────────────────────────────
 //  HELPERS JWT
@@ -278,6 +303,54 @@ app.get('/api/perfil/me', auth, async (req, res) => {
   }
 });
 
+app.get('/api/perfil/usuario/:usuarioId', auth, async (req, res) => {
+  try {
+    const usuario = await User.findById(req.params.usuarioId).select('nombre apellido email rol activo');
+    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+    let perfil = null;
+    if (usuario.rol === 'estudiante')
+      perfil = await PerfilEstudiante.findOne({ usuario_id: usuario._id });
+    else if (usuario.rol === 'empresa')
+      perfil = await PerfilEmpresa.findOne({ usuario_id: usuario._id });
+
+    res.json({ ...usuario.toObject(), perfil });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/perfil/usuario/:usuarioId/ofertas', auth, async (req, res) => {
+  try {
+    const perfil = await PerfilEmpresa.findOne({ usuario_id: req.params.usuarioId });
+    if (!perfil) return res.status(404).json({ error: 'Perfil de empresa no encontrado' });
+
+    const ofertas = await PublicacionEmpleo.find({ empresa_id: perfil._id, activo: true }).sort({ publicado_en: -1 });
+    res.json(ofertas);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/perfil/mis-postulaciones', auth, soloRoles('estudiante'), async (req, res) => {
+  try {
+    const perfil = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
+    if (!perfil) return res.json([]);
+
+    const posts = await Postulacion.find({ estudiante_id: perfil._id })
+      .populate({
+        path: 'empleo_id',
+        select: 'titulo ubicacion modalidad salario_min salario_max empresa_id publicado_en activo',
+        populate: { path: 'empresa_id', select: 'nombre_empresa logo_url' }
+      })
+      .sort({ postulado_en: -1 });
+
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Heartbeat: actualizar ultimaConexion explícitamente
 app.post('/api/auth/heartbeat', auth, async (req, res) => {
   try {
@@ -322,7 +395,7 @@ app.post('/api/perfil/cv', auth, soloRoles('estudiante'), upload.single('cv'), a
     await PerfilEstudiante.findOneAndUpdate(
       { usuario_id: req.usuario._id },
       { curriculum_url: cvUrl },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     // Si el usuario ya está verificado, crear solicitud de aprobación
@@ -364,417 +437,31 @@ app.post('/api/perfil/cv', auth, soloRoles('estudiante'), upload.single('cv'), a
   }
 });
 
-// Obtener CV de un estudiante
-app.get('/api/perfil/cv/:usuarioId', auth, async (req, res) => {
+app.post('/api/perfil/foto', auth, uploadImage.single('foto'), async (req, res) => {
   try {
-    const perfil = await PerfilEstudiante.findOne({ usuario_id: req.params.usuarioId }).select('curriculum_url');
-    if (!perfil?.curriculum_url) return res.status(404).json({ error: 'CV no encontrado' });
-    res.json({ cvUrl: perfil.curriculum_url });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+    if (!req.file) return res.status(400).json({ error: 'Archivo de imagen requerido' });
 
-// Eliminar CV
-app.delete('/api/perfil/cv', auth, soloRoles('estudiante'), async (req, res) => {
-  try {
-    const perfil = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
-    if (!perfil?.curriculum_url) return res.status(404).json({ error: 'No tienes un CV subido' });
+    const fotoUrl = `/uploads/${req.file.filename}`;
 
-    // Eliminar archivo físico
-    const filePath = path.join(__dirname, perfil.curriculum_url.replace('/uploads', ''));
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-
-    perfil.curriculum_url = null;
-    await perfil.save();
-
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Obtener historial de trabajo de un estudiante (público)
-app.get('/api/perfil/historial-trabajo/:usuarioId', auth, async (req, res) => {
-  try {
-    const perfilEst = await PerfilEstudiante.findOne({ usuario_id: req.params.usuarioId });
-    if (!perfilEst) return res.json([]);
-
-    const historial = await HistorialTrabajo.find({ estudiante_id: perfilEst._id, estado: 'completado' })
-      .populate({
-        path: 'empresa_id',
-        select: 'nombre_empresa logo_url rubro',
-      })
-      .populate({
-        path: 'empleo_id',
-        select: 'titulo',
-      })
-      .sort({ fecha_fin: -1 });
-
-    res.json(historial);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Obtener estudiantes contratados por oferta (solo empresa dueña)
-app.get('/api/ofertas/:id/contratados', auth, soloRoles('empresa', 'admin'), async (req, res) => {
-  try {
-    const oferta = await PublicacionEmpleo.findById(req.params.id).populate('empresa_id');
-    if (!oferta) return res.status(404).json({ error: 'Oferta no encontrada' });
-
-    const historial = await HistorialTrabajo.find({ empleo_id: oferta._id })
-      .populate({
-        path: 'estudiante_id',
-        populate: { path: 'usuario_id', select: 'nombre apellido email' },
-      })
-      .populate('empleo_id', 'titulo');
-
-    res.json(historial);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Empresa envía feedback y nota a estudiante contratado
-app.patch('/api/historial-trabajo/:id/feedback', auth, soloRoles('empresa', 'admin'), async (req, res) => {
-  try {
-    const { feedback_empresa, nota_empresa, estado } = req.body;
-
-    const historial = await HistorialTrabajo.findById(req.params.id)
-      .populate({
-        path: 'estudiante_id',
-        populate: { path: 'usuario_id', select: 'nombre apellido email' },
-      })
-      .populate('empleo_id', 'titulo');
-
-    if (!historial) return res.status(404).json({ error: 'Registro no encontrado' });
-
-    // Verificar que la empresa es dueña
-    const perfilEmpresa = await PerfilEmpresa.findOne({ usuario_id: req.usuario._id });
-    if (!historial.empresa_id.equals(perfilEmpresa?._id)) return res.status(403).json({ error: 'Sin permisos' });
-
-    if (feedback_empresa !== undefined) historial.feedback_empresa = feedback_empresa;
-    if (nota_empresa !== undefined) historial.nota_empresa = nota_empresa;
-    if (estado === 'completado') {
-      historial.estado = 'completado';
-      historial.fecha_fin = new Date();
+    if (req.usuario.rol === 'estudiante') {
+      await PerfilEstudiante.findOneAndUpdate(
+        { usuario_id: req.usuario._id },
+        { foto_perfil_url: fotoUrl },
+        { upsert: true, returnDocument: 'after' }
+      );
+    } else if (req.usuario.rol === 'empresa') {
+      await PerfilEmpresa.findOneAndUpdate(
+        { usuario_id: req.usuario._id },
+        { logo_url: fotoUrl },
+        { upsert: true, returnDocument: 'after' }
+      );
     }
 
-    await historial.save();
-
-    // Notificar al estudiante
-    if (historial.estudiante_id?.usuario_id) {
-      await Notificacion.create({
-        usuario_id: historial.estudiante_id.usuario_id,
-        tipo: 'otra',
-        titulo: estado === 'completado' ? 'Trabajo completado' : 'Feedback recibido',
-        texto: estado === 'completado'
-          ? `Tu trabajo en "${historial.empleo_id?.titulo}" ha sido completado. La empresa te ha dejado una valoración.`
-          : `Has recibido una nueva valoración de la empresa en "${historial.empleo_id?.titulo}".`,
-        link: '/perfil',
-      });
-    }
-
-    res.json({ ok: true, historial });
+    res.json({ ok: true, fotoUrl });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
-
-app.put('/api/perfil', auth, async (req, res) => {
-  try {
-    const { nombre, apellido, descripcion, especialidad, ciudad, telefono, linkedin, intereses, destrezas, nombre_empresa, rubro, sitio_web, region } = req.body;
-
-    // Verificar si el usuario ya tiene un perfil aprobado (verificado)
-    const solicitudAprobada = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'aprobada' });
-    const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: req.usuario._id, estado: 'pendiente' });
-
-    // Si ya está verificado y no tiene solicitud pendiente → crear solicitud de modificación
-    if (solicitudAprobada && !solicitudPendiente) {
-      const datosSolicitados = req.usuario.rol === 'estudiante'
-        ? { descripcion, especialidad, ciudad, telefono, linkedin, intereses: intereses ? JSON.parse(intereses) : undefined, destrezas: destrezas ? JSON.parse(destrezas) : undefined }
-        : { nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region };
-
-      // Limpiar undefined
-      Object.keys(datosSolicitados).forEach(k => datosSolicitados[k] === undefined && delete datosSolicitados[k]);
-
-      const solicitud = await SolicitudPerfil.create({
-        usuario_id: req.usuario._id,
-        tipo: 'modificacion',
-        rol: req.usuario.rol,
-        datos_solicitados: datosSolicitados,
-        estado: 'pendiente',
-      });
-
-      // Actualizar nombre/apellido directamente (siempre permitido)
-      if (nombre || apellido) {
-        await User.findByIdAndUpdate(req.usuario._id, {
-          ...(nombre && { nombre }),
-          ...(apellido && { apellido }),
-        });
-      }
-
-      // Notificar al usuario
-      await Notificacion.create({
-        usuario_id: req.usuario._id,
-        tipo: 'otra',
-        titulo: 'Modificación enviada',
-        texto: 'Tu solicitud de modificación de perfil ha sido enviada al administrador. Los cambios se aplicarán tras la revisión.',
-        link: '/perfil',
-      });
-
-      // Notificar al admin
-      const admins = await User.find({ rol: 'admin' }).select('_id');
-      for (const admin of admins) {
-        await Notificacion.create({
-          usuario_id: admin._id,
-          tipo: 'otra',
-          titulo: 'Nueva modificación de perfil',
-          texto: `${req.usuario.nombre} ${req.usuario.apellido} solicitó cambios en su perfil.`,
-          link: '/admin',
-        });
-      }
-
-      return res.json({ ok: true, solicitud, pendiente: true });
-    }
-
-    // Si no está verificado → crear solicitud de creación (comportamiento actual)
-    if (!solicitudAprobada && !solicitudPendiente) {
-      const datosSolicitados = req.usuario.rol === 'estudiante'
-        ? { descripcion, especialidad, ciudad, telefono, linkedin, intereses: intereses ? JSON.parse(intereses) : undefined, destrezas: destrezas ? JSON.parse(destrezas) : undefined }
-        : { nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region };
-
-      Object.keys(datosSolicitados).forEach(k => datosSolicitados[k] === undefined && delete datosSolicitados[k]);
-
-      await SolicitudPerfil.create({
-        usuario_id: req.usuario._id,
-        tipo: 'creacion',
-        rol: req.usuario.rol,
-        datos_solicitados: datosSolicitados,
-        estado: 'pendiente',
-      });
-
-      if (nombre || apellido) {
-        await User.findByIdAndUpdate(req.usuario._id, {
-          ...(nombre && { nombre }),
-          ...(apellido && { apellido }),
-        });
-      }
-
-      return res.json({ ok: true, pendiente: true });
-    }
-
-    // Si ya tiene solicitud pendiente → no permitir otra
-    if (solicitudPendiente) {
-      return res.status(409).json({ error: 'Ya tienes una solicitud de perfil pendiente de revisión.' });
-    }
-
-    // Fallback (no debería llegar aquí)
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put('/api/perfil/estudiante', auth, soloRoles('estudiante'), async (req, res) => {
-  try {
-    const { nombre, apellido, descripcion, especialidad, ciudad, telefono, linkedin, intereses, destrezas } = req.body;
-    if (nombre || apellido)
-      await User.findByIdAndUpdate(req.usuario._id, { ...(nombre && { nombre }), ...(apellido && { apellido }) });
-
-    const perfil = await PerfilEstudiante.findOneAndUpdate(
-      { usuario_id: req.usuario._id },
-      {
-        descripcion, especialidad, ciudad, telefono, linkedin,
-        ...(intereses && { intereses: JSON.parse(intereses) }),
-        ...(destrezas && { destrezas: JSON.parse(destrezas) }),
-      },
-      { returnDocument: 'after', upsert: true }
-    );
-    res.json(perfil);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.put('/api/perfil/empresa', auth, soloRoles('empresa'), async (req, res) => {
-  try {
-    const { nombre, apellido, nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region } = req.body;
-    if (nombre || apellido)
-      await User.findByIdAndUpdate(req.usuario._id, { ...(nombre && { nombre }), ...(apellido && { apellido }) });
-
-    const perfil = await PerfilEmpresa.findOneAndUpdate(
-      { usuario_id: req.usuario._id },
-      { nombre_empresa, descripcion, rubro, sitio_web, telefono, ciudad, region },
-      { returnDocument: 'after', upsert: true }
-    );
-    res.json(perfil);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Obtener perfil público de un usuario por su ID
-app.get('/api/perfil/usuario/:usuarioId', auth, async (req, res) => {
-  try {
-    const usuario = await User.findById(req.params.usuarioId).select('-password_hash');
-    if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
-
-    let perfil = null;
-    if (usuario.rol === 'estudiante') {
-      perfil = await PerfilEstudiante.findOne({ usuario_id: usuario._id })
-        .select('foto_perfil_url especialidad descripcion intereses destrezas ciudad linkedin');
-    } else if (usuario.rol === 'empresa') {
-      perfil = await PerfilEmpresa.findOne({ usuario_id: usuario._id })
-        .select('nombre_empresa logo_url descripcion rubro sitio_web telefono ciudad region');
-    }
-
-    // Verificar estado de verificación del perfil
-    let verificado = true;
-    if (usuario.rol !== 'admin') {
-      const solicitudPendiente = await SolicitudPerfil.findOne({ usuario_id: usuario._id, estado: 'pendiente' });
-      const solicitudAprobada = await SolicitudPerfil.findOne({ usuario_id: usuario._id, estado: 'aprobada' });
-      verificado = !solicitudPendiente && !!solicitudAprobada;
-    }
-
-    res.json({
-      _id: usuario._id,
-      nombre: usuario.nombre,
-      apellido: usuario.apellido,
-      email: usuario.email,
-      rol: usuario.rol,
-      perfil,
-      verificado,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Obtener ofertas activas de una empresa por usuario_id
-app.get('/api/perfil/usuario/:usuarioId/ofertas', auth, async (req, res) => {
-  try {
-    const usuario = await User.findById(req.params.usuarioId).select('rol');
-    if (!usuario || usuario.rol !== 'empresa') return res.json([]);
-
-    const perfil = await PerfilEmpresa.findOne({ usuario_id: usuario._id });
-    if (!perfil) return res.json([]);
-
-    const ofertas = await PublicacionEmpleo.find({ empresa_id: perfil._id, activo: true })
-      .sort({ publicado_en: -1 });
-
-    res.json(ofertas);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/perfil/mis-postulaciones', auth, soloRoles('estudiante'), async (req, res) => {
-  try {
-    const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
-    if (!perfilEstudiante) return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
-    
-    const posts = await Postulacion.find({ estudiante_id: perfilEstudiante._id })
-      .populate({
-        path: 'empleo_id',
-        select: 'titulo ubicacion modalidad salario_min salario_max activo',
-        populate: { path: 'empresa_id', select: 'nombre_empresa logo_url' },
-      })
-      .sort({ postulado_en: -1 });
-    res.json(posts);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.delete('/api/perfil/postulaciones/:postId/retirar', auth, soloRoles('estudiante'), async (req, res) => {
-  try {
-    const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
-    if (!perfilEstudiante) {
-      return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
-    }
-    
-    const { Types } = await import('mongoose');
-    let postIdObj;
-    try {
-      postIdObj = new Types.ObjectId(req.params.postId);
-    } catch (e) {
-      return res.status(400).json({ error: 'ID de postulación inválido' });
-    }
-    
-    const post = await Postulacion.findOneAndDelete({ _id: postIdObj, estudiante_id: perfilEstudiante._id });
-    if (!post) {
-      return res.status(404).json({ error: 'Postulación no encontrada' });
-    }
-
-    await Notificacion.create({
-      usuario_id: req.usuario._id,
-      tipo: 'otra',
-      titulo: 'Postulación retirada',
-      texto: 'Has retirado tu postulación exitosamente.',
-      link: '/mis-postulaciones',
-    });
-
-    res.json({ ok: true, mensaje: 'Postulación retirada' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.get('/api/perfil/mis-calificaciones', auth, soloRoles('estudiante'), async (req, res) => {
-  try {
-    const perfilEstudiante = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
-    if (!perfilEstudiante) return res.status(404).json({ error: 'Perfil de estudiante no encontrado' });
-    
-    const califs = await CalificacionTrabajo.find({ estudiante_id: perfilEstudiante._id })
-      .populate('empresa_id', 'nombre_empresa')
-      .populate('postulacion_id')
-      .sort({ creado_en: -1 });
-    res.json(califs);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Helper: notificar a postulantes cuando una oferta se cierra/elimina
-async function notificarCierreOferta(empleoId, tituloOferta, motivoCierre = null, eliminada = false) {
-  try {
-    const postulaciones = await Postulacion.find({ empleo_id: empleoId });
-    console.log('notificarCierreOferta: empleoId=', empleoId, 'postulaciones encontradas=', postulaciones.length);
-    if (!postulaciones.length) return;
-
-    // Obtener perfiles de estudiantes para tener sus usuario_id
-    const estudianteIds = postulaciones.map(p => p.estudiante_id);
-    const perfiles = await PerfilEstudiante.find({ _id: { $in: estudianteIds } }).select('usuario_id');
-
-    const accion = eliminada ? 'eliminada' : 'cerrada';
-    let texto = `La oferta "${tituloOferta}" fue ${accion} por la empresa.`;
-    if (motivoCierre) {
-      texto += ` Motivo: ${motivoCierre}`;
-    }
-
-    const notificaciones = perfiles.map(perfil => ({
-      usuario_id: perfil.usuario_id,
-      tipo: 'otra',
-      titulo: eliminada ? 'Oferta eliminada' : 'Oferta cerrada',
-      texto,
-      link: `/mis-postulaciones`,
-    }));
-
-    if (notificaciones.length) {
-      await Notificacion.insertMany(notificaciones);
-    }
-
-    // Actualizar postulaciones a estado rechazada
-    await Postulacion.updateMany(
-      { empleo_id: empleoId },
-      { estado: 'rechazada' }
-    );
-  } catch (err) {
-    // Silenciar error de notificación
-  }
-}
 
 // ─────────────────────────────────────────────
 //  OFERTAS (públicas y privadas)
@@ -854,6 +541,37 @@ app.patch('/api/ofertas/postulaciones/:postId/estado', auth, soloRoles('empresa'
         texto: `Tu postulación a "${post.empleo_id.titulo}" fue ${estado}.`,
         link:  `/oferta/${post.empleo_id._id}`,
       });
+    }
+
+    // Si se acepta, agregar al estudiante al chat grupal de la oferta (crearlo si no existe)
+    if (estado === 'aceptada' && post?.estudiante_id?.usuario_id && post?.empleo_id) {
+      const empresaUsuarioId = post.empleo_id.empresa_id?.usuario_id;
+      const estudianteUsuarioId = post.estudiante_id.usuario_id;
+      const ofertaId = post.empleo_id._id;
+      const ofertaTitulo = post.empleo_id.titulo;
+
+      if (empresaUsuarioId && estudianteUsuarioId) {
+        let grupo = await Conversacion.findOne({ oferta_id: ofertaId, tipo: 'grupal' });
+        if (!grupo) {
+          // Obtener logo de la empresa
+          const perfilEmpresa = await PerfilEmpresa.findOne({ usuario_id: empresaUsuarioId }).select('logo_url');
+          grupo = await Conversacion.create({
+            participantes: [empresaUsuarioId, estudianteUsuarioId],
+            tipo: 'grupal',
+            nombre: ofertaTitulo,
+            oferta_id: ofertaId,
+            creador_id: empresaUsuarioId,
+            foto_url: perfilEmpresa?.logo_url || null,
+            ultimo_mensaje_preview: 'Bienvenido al grupo de la oferta',
+          });
+        } else {
+          const yaEsta = grupo.participantes.some(p => p.toString() === estudianteUsuarioId.toString());
+          if (!yaEsta) {
+            grupo.participantes.push(estudianteUsuarioId);
+            await grupo.save();
+          }
+        }
+      }
     }
 
     // Si se contrata, crear entrada en historial de trabajo
@@ -1111,7 +829,21 @@ app.get('/api/mensajes', auth, async (req, res) => {
         leido: false,
       });
       const otro = c.participantes.find(p => !p._id.equals(req.usuario._id));
-      return { _id: c._id, participante: otro, ultimo_mensaje_preview: c.ultimo_mensaje_preview, ultimo_mensaje_en: c.ultimo_mensaje_en, noLeidos };
+      if (otro) {
+        otro.foto = await getUserFoto(otro._id, otro.rol);
+      }
+      return {
+        _id: c._id,
+        tipo: c.tipo,
+        nombre: c.nombre,
+        oferta_id: c.oferta_id,
+        foto_url: c.foto_url,
+        participante: otro,
+        participantes: c.participantes,
+        ultimo_mensaje_preview: c.ultimo_mensaje_preview,
+        ultimo_mensaje_en: c.ultimo_mensaje_en,
+        noLeidos,
+      };
     }));
 
     res.json(resultado);
@@ -1187,12 +919,30 @@ app.get('/api/mensajes/:convId', auth, async (req, res) => {
       .populate('remitente_id', 'nombre rol')
       .sort({ enviado_en: 1 });
 
+    // Agregar foto a cada remitente
+    const remitenteIds = [...new Set(mensajes.map(m => m.remitente_id?._id?.toString()).filter(Boolean))];
+    const remitentesConFoto = {};
+    await Promise.all(remitenteIds.map(async id => {
+      const user = await User.findById(id).select('rol');
+      if (user) {
+        remitentesConFoto[id] = await getUserFoto(id, user.rol);
+      }
+    }));
+
+    const mensajesConFoto = mensajes.map(m => {
+      const obj = m.toObject();
+      if (obj.remitente_id) {
+        obj.remitente_id.foto = remitentesConFoto[obj.remitente_id._id.toString()] || null;
+      }
+      return obj;
+    });
+
     await Mensaje.updateMany(
       { conversacion_id: conv._id, remitente_id: { $ne: req.usuario._id }, leido: false },
       { leido: true, leido_en: new Date() }
     );
 
-    res.json(mensajes);
+    res.json(mensajesConFoto);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1261,6 +1011,61 @@ app.get('/api/mensajes/:convId/no-leidos', auth, async (req, res) => {
   }
 });
 
+// Obtener miembros de una conversación grupal
+app.get('/api/mensajes/:convId/miembros', auth, async (req, res) => {
+  try {
+    const conv = await Conversacion.findById(req.params.convId).populate('participantes', 'nombre apellido rol');
+    if (!conv) return res.status(404).json({ error: 'Conversación no encontrada' });
+    if (!conv.participantes.some(p => p._id.equals(req.usuario._id)))
+      return res.status(403).json({ error: 'Sin acceso' });
+
+    const participantesConFoto = await Promise.all(conv.participantes.map(async p => {
+      const foto = await getUserFoto(p._id, p.rol);
+      return { ...p.toObject(), foto };
+    }));
+
+    res.json({
+      _id: conv._id,
+      nombre: conv.nombre,
+      tipo: conv.tipo,
+      participantes: participantesConFoto,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Salir de una conversación grupal
+app.patch('/api/mensajes/:convId/salir', auth, async (req, res) => {
+  try {
+    const conv = await Conversacion.findById(req.params.convId);
+    if (!conv) return res.status(404).json({ error: 'Conversación no encontrada' });
+    if (conv.tipo !== 'grupal') return res.status(400).json({ error: 'Solo se puede salir de grupos' });
+    if (!conv.participantes.some(p => p.equals(req.usuario._id)))
+      return res.status(403).json({ error: 'No eres miembro de este grupo' });
+
+    await Conversacion.findByIdAndUpdate(conv._id, {
+      $pull: { participantes: req.usuario._id }
+    });
+
+    res.json({ ok: true, mensaje: 'Saliste del grupo' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Buscar o crear conversación grupal por oferta (para empresas)
+app.get('/api/mensajes/grupo-oferta/:ofertaId', auth, soloRoles('empresa', 'admin'), async (req, res) => {
+  try {
+    const grupo = await Conversacion.findOne({ oferta_id: req.params.ofertaId, tipo: 'grupal' })
+      .populate('participantes', 'nombre apellido rol');
+    if (!grupo) return res.status(404).json({ error: 'Grupo no encontrado' });
+    res.json(grupo);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─────────────────────────────────────────────
 //  NOTIFICACIONES
 // ─────────────────────────────────────────────
@@ -1289,7 +1094,7 @@ app.patch('/api/notificaciones/:notifId/leida', auth, async (req, res) => {
     const notif = await Notificacion.findOneAndUpdate(
       { _id: req.params.notifId, usuario_id: req.usuario._id },
       { leida: true },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!notif) return res.status(404).json({ error: 'Notificación no encontrada' });
     res.json({ ok: true });
@@ -1462,13 +1267,13 @@ app.patch('/api/admin/solicitudes-perfil/:id/aprobar', auth, soloRoles('admin'),
       await PerfilEstudiante.findOneAndUpdate(
         { usuario_id: solicitud.usuario_id._id },
         { ...datosFinales, usuario_id: solicitud.usuario_id._id },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     } else if (solicitud.rol === 'empresa') {
       await PerfilEmpresa.findOneAndUpdate(
         { usuario_id: solicitud.usuario_id._id },
         { ...datosFinales, usuario_id: solicitud.usuario_id._id },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: 'after' }
       );
     }
 
@@ -1758,7 +1563,7 @@ app.patch('/api/admin/perfil/:usuarioId', auth, soloRoles('admin'), async (req, 
       apellido: usuarioTarget.apellido,
     };
 
-    const { nombre, apellido, descripcion, especialidad, ciudad, telefono, linkedin, intereses, destrezas, nombre_empresa, rubro, sitio_web, region } = req.body;
+    const { nombre, apellido, descripcion, especialidad, ciudad, telefono, linkedin, intereses, destrezas, nombre_empresa, rubro, sitio_web, region, eliminarCv } = req.body;
 
     // Actualizar campos de User
     const cambiosUser = {};
@@ -1783,12 +1588,16 @@ app.patch('/api/admin/perfil/:usuarioId', auth, soloRoles('admin'), async (req, 
           linkedin: perfil.linkedin,
           intereses: perfil.intereses,
           destrezas: perfil.destrezas,
+          curriculum_url: perfil.curriculum_url,
         };
 
         const camposPerfil = ['descripcion', 'especialidad', 'ciudad', 'telefono', 'linkedin'];
         camposPerfil.forEach(c => { if (req.body[c] !== undefined) perfil[c] = req.body[c]; });
         if (intereses !== undefined) perfil.intereses = typeof intereses === 'string' ? JSON.parse(intereses) : intereses;
         if (destrezas !== undefined) perfil.destrezas = typeof destrezas === 'string' ? JSON.parse(destrezas) : destrezas;
+        if (eliminarCv === true || eliminarCv === 'true') {
+          perfil.curriculum_url = '';
+        }
         await perfil.save();
 
         perfilDespues = {
@@ -1799,6 +1608,7 @@ app.patch('/api/admin/perfil/:usuarioId', auth, soloRoles('admin'), async (req, 
           linkedin: perfil.linkedin,
           intereses: perfil.intereses,
           destrezas: perfil.destrezas,
+          curriculum_url: perfil.curriculum_url,
         };
       }
     } else if (usuarioTarget.rol === 'empresa') {
@@ -1841,7 +1651,7 @@ app.patch('/api/admin/perfil/:usuarioId', auth, soloRoles('admin'), async (req, 
       especialidad: 'Especialidad', ciudad: 'Ciudad', telefono: 'Teléfono',
       linkedin: 'LinkedIn', intereses: 'Intereses', destrezas: 'Destrezas',
       nombre_empresa: 'Nombre empresa', rubro: 'Rubro', sitio_web: 'Sitio web',
-      region: 'Región',
+      region: 'Región', curriculum_url: 'CV',
     };
 
     // Comparar campos de User
@@ -1934,7 +1744,7 @@ app.patch('/api/admin/config', auth, soloRoles('admin'), async (req, res) => {
     const config = await AppConfig.findOneAndUpdate(
       { clave },
       { valor },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
 
     await AuditLog.create({

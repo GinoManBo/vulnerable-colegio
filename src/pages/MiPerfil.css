@@ -321,7 +321,7 @@
 .form-group textarea { height: auto; padding: 10px 12px; resize: vertical; line-height: 1.55; }
 .form-group input:focus,
 .form-group select:focus,
-.form-group textarea:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(26,58,92,0.08); }
+.form-group textarea:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(99,102,241,0.12); }
 
 .curriculum-upload { margin-top: 16px; }
 .curriculum-upload label { font-size: 12.5px; font-weight: 500; color: var(--texto-2); display: block; margin-bottom: 6px; }
@@ -384,7 +384,7 @@
   font-weight: 500;
   color: var(--azul);
 }
-.tag-editable.interes { background: var(--verde-light); color: #0D6E47; }
+.tag-editable.interes { background: var(--verde-light); color: #34D399; }
 .tag-editable button {
   font-size: 14px;
   color: currentColor;
@@ -425,7 +425,7 @@
   border-radius: 99px;
   font-size: 12.5px;
   font-weight: 600;
-  color: #0D6E47;
+  color: #34D399;
 }
 .historial-lista { display: flex; flex-direction: column; gap: 1px; }
 .historial-item {
@@ -514,7 +514,7 @@
 }
 
 .btn-ir-a:hover {
-  background: #CCE5FF;
+  background: rgba(99,102,241,0.2);
 }
 
 .btn-mostrar-mas {

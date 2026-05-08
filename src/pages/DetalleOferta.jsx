@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ofertasAPI, preguntasAPI, perfilAPI } from '../api';
+import { ofertasAPI, preguntasAPI, perfilAPI, getMediaUrl } from '../api';
 import './DetalleOferta.css';
 
 function fmt(n){ return '$'+Math.round(n).toLocaleString('es-CL'); }
@@ -22,6 +22,7 @@ export default function DetalleOferta({ usuario }) {
   const [respTexto,    setRespTexto]    = useState('');
   const [postulado,    setPostulado]    = useState(false);
   const [postulacionId, setPostulacionId] = useState(null);
+  const [estadoPostulacion, setEstadoPostulacion] = useState(null);
   const [postulando,   setPostulando]   = useState(false);
   const [retirando,    setRetirando]    = useState(false);
   const [cargando,     setCargando]     = useState(true);
@@ -157,7 +158,7 @@ export default function DetalleOferta({ usuario }) {
             <div className="dof-header">
               <div className="dof-logo">
                 {empresa.logo_url
-                  ? <img src={`http://localhost:5000${empresa.logo_url}`} alt="logo"/>
+                  ? <img src={getMediaUrl(empresa.logo_url)} alt="logo"/>
                   : <span>{empresa.nombre_empresa?.[0]??'E'}</span>
                 }
               </div>

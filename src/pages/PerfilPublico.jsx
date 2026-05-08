@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { perfilAPI, mensajesAPI, adminAPI } from '../api';
+import { perfilAPI, mensajesAPI, adminAPI, getMediaUrl } from '../api';
 import OnlineStatus from '../components/OnlineStatus';
 import './MiPerfil.css';
 
@@ -53,7 +53,7 @@ export default function PerfilPublico({ usuario }) {
           rubro: perfil.rubro || '',
           sitio_web: perfil.sitio_web || '',
           region: perfil.region || '',
-          foto: perfil.foto_perfil_url || perfil.logo_url || null,
+          foto: getMediaUrl(perfil.foto_perfil_url || perfil.logo_url || null),
           destrezas: perfil.destrezas || [],
           intereses: perfil.intereses || [],
           usuario_id: res._id,
@@ -61,7 +61,7 @@ export default function PerfilPublico({ usuario }) {
         setDatos(datosCompletos);
         setTmp({ ...datosCompletos });
         if (perfil.curriculum_url) {
-          setCvUrl(`http://localhost:5000${perfil.curriculum_url}`);
+          setCvUrl(getMediaUrl(perfil.curriculum_url));
         }
 
         // Si es empresa, cargar ofertas activas
@@ -95,6 +95,8 @@ export default function PerfilPublico({ usuario }) {
     }
   }
 
+  const [eliminarCv, setEliminarCv] = useState(false);
+
   async function guardarCambiosAdmin() {
     if (!datos?.usuario_id) return;
     setGuardando(true);
@@ -117,6 +119,9 @@ export default function PerfilPublico({ usuario }) {
         payload.rubro = tmp.rubro;
         payload.sitio_web = tmp.sitio_web;
         payload.region = tmp.region;
+      }
+      if (eliminarCv) {
+        payload.eliminarCv = true;
       }
       await adminAPI.modificarPerfil(datos.usuario_id, payload);
       // Recargar perfil actualizado
@@ -144,6 +149,8 @@ export default function PerfilPublico({ usuario }) {
       setDatos(datosActualizados);
       setTmp({ ...datosActualizados });
       setEditando(false);
+      setEliminarCv(false);
+      if (eliminarCv) setCvUrl(null);
       setMsgExito('Perfil actualizado correctamente. Los cambios fueron registrados en auditoría.');
     } catch (err) {
       setError(err.message);
@@ -239,7 +246,7 @@ export default function PerfilPublico({ usuario }) {
                 <button className="btn-admin-save" onClick={guardarCambiosAdmin} disabled={guardando}>
                   {guardando ? 'Guardando...' : 'Guardar cambios'}
                 </button>
-                <button className="btn-admin-cancel" onClick={() => { setEditando(false); setTmp({ ...datos }); }}>
+                <button className="btn-admin-cancel" onClick={() => { setEditando(false); setTmp({ ...datos }); setEliminarCv(false); }}>
                   Cancelar
                 </button>
               </div>
@@ -267,7 +274,7 @@ export default function PerfilPublico({ usuario }) {
                   ) : (
                     <h1 className="miperfil-nombre">{esEmpresa ? datos.nombre_empresa : `${datos.nombre} ${datos.apellido}`}</h1>
                   )}
-                  {!esEmpresa && <OnlineStatus usuarioId={datos.usuario_id} size={12} />}
+                  {!esEmpresa && <OnlineStatus usuarioId={datos.usuario_id} size={12} style={{ marginLeft: 6 }} />}
                   <span className="badge badge-verde">{esEmpresa ? 'Empresa' : datos.rol === 'admin' ? 'Administrador' : 'Estudiante'}</span>
                   {verificado
                     ? <span className="badge badge-verif"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>Verificado</span>
@@ -404,12 +411,30 @@ export default function PerfilPublico({ usuario }) {
             </div>
           )}
 
-          {!esEmpresa && cvUrl && (
+          {!esEmpresa && (cvUrl || editando) && (
             <div className="card edit-card">
               <h2 className="section-title">Currículum Vitae</h2>
-              <div className="cv-pdf-container">
-                <iframe src={cvUrl} className="cv-pdf-frame" title="Currículum" />
-              </div>
+              {editando && cvUrl && (
+                <div className="cv-delete-check" style={{ marginBottom: 14 }}>
+                  <input
+                    type="checkbox"
+                    id="eliminar-cv"
+                    checked={eliminarCv}
+                    onChange={e => setEliminarCv(e.target.checked)}
+                  />
+                  <label htmlFor="eliminar-cv" style={{ cursor: 'pointer', color: 'var(--rojo)' }}>
+                    Eliminar currículum
+                  </label>
+                </div>
+              )}
+              {cvUrl && !eliminarCv && (
+                <div className="cv-pdf-container">
+                  <iframe src={cvUrl} className="cv-pdf-frame" title="Currículum" />
+                </div>
+              )}
+              {eliminarCv && (
+                <p style={{ color: 'var(--rojo)', fontSize: 13 }}>El currículum será eliminado al guardar los cambios.</p>
+              )}
             </div>
           )}
 

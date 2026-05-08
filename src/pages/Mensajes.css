@@ -2,6 +2,8 @@
 .msgs-layout { display:flex; height:100%; }
 
 .msgs-sidebar { width:300px; flex-shrink:0; border-right:1px solid var(--gris-borde); background:var(--gris-card); display:flex; flex-direction:column; }
+.msgs-conv-av.estudiante { background:var(--verde-light); color:#34D399; }
+.msgs-conv-av.admin      { background:rgba(139,92,246,0.12); color:#A78BFA; }
 .msgs-sidebar-header { display:flex; align-items:center; justify-content:space-between; padding:16px 16px 12px; border-bottom:1px solid var(--gris-borde); }
 .msgs-titulo    { font-family:var(--font-display); font-size:17px; font-weight:600; color:var(--texto); }
 .msgs-nuevo-btn { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:var(--azul-light); color:var(--azul); border:none; cursor:pointer; transition:background var(--transition); }
@@ -59,6 +61,9 @@
 .msgs-msg-av { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; font-size:12px; flex-shrink:0; }
 .msgs-msg-av.empresa    { background:var(--azul-light); color:var(--azul); }
 .msgs-msg-av.estudiante { background:var(--verde-light); color:#0D6E47; }
+.msgs-msg-av.admin      { background:rgba(139,92,246,0.12); color:#A78BFA; }
+
+.msgs-grupo-remitente { display:block; font-size:11px; font-weight:600; color:var(--gris-2); margin-bottom:4px; }
 
 .msgs-burbuja { max-width:62%; padding:10px 14px; border-radius:16px; background:var(--gris-card); border:1px solid var(--gris-borde); position:relative; }
 .msgs-burbuja.yo { background:var(--azul); border-color:var(--azul); border-bottom-right-radius:4px; }
@@ -89,6 +94,10 @@
 .fp-close:hover { background:var(--gris-bg); }
 .msgs-nuevo-item { display:flex; align-items:center; gap:10px; width:100%; padding:10px 8px; background:none; border:none; border-radius:var(--radius-md); cursor:pointer; text-align:left; transition:background var(--transition); }
 .msgs-nuevo-item:hover { background:var(--gris-bg); }
+
+.msgs-grupo-menu { position:absolute; right:0; top:36px; background:var(--gris-card); border:1px solid var(--gris-borde); border-radius:var(--radius-md); box-shadow:0 4px 12px rgba(0,0,0,.25); z-index:50; min-width:160px; overflow:hidden; }
+.msgs-grupo-menu button { display:block; width:100%; text-align:left; padding:10px 14px; font-size:13px; color:var(--texto); background:none; border:none; cursor:pointer; transition:background var(--transition); }
+.msgs-grupo-menu button:hover { background:var(--gris-bg); }
 
 @keyframes fadeIn { from{opacity:0} to{opacity:1} }
 

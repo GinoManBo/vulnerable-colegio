@@ -2,116 +2,123 @@
   padding: 40px 24px;
   max-width: 1200px;
   margin: 0 auto;
+  min-height: calc(100vh - var(--nav-h));
+  background: var(--gris-bg);
 }
 
 .mis-postulaciones-header {
-  margin-bottom: 40px;
+  margin-bottom: 32px;
 }
 
 .mis-postulaciones-header h1 {
-  font-size: 2rem;
-  font-weight: 600;
-  margin: 0 0 8px 0;
-  color: var(--negro);
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  color: var(--texto);
+  letter-spacing: -0.3px;
 }
 
 .mis-postulaciones-subtitle {
   color: var(--gris-2);
-  font-size: 1rem;
+  font-size: 14px;
   margin: 0;
 }
 
 /* Stats */
 .mis-postulaciones-stats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 32px;  
-  
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
 }
 
 .stat-card {
-  background: linear-gradient(135deg, var(--azul-1) 0%, var(--azul-2) 100%);
-  border-radius: 8px;
-  padding: 20px;
-  color: white;
-  background-color: white;
+  background: var(--gris-card);
+  border: 1px solid var(--gris-borde);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  transition: all 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: rgba(255,255,255,0.12);
+  transform: translateY(-1px);
 }
 
 .stat-label {
-  font-size: 0.875rem;
+  font-size: 12px;
   font-weight: 500;
-  opacity: 0.9;
-  margin-bottom: 8px;
-  color: black;
+  color: var(--gris-2);
+  margin-bottom: 6px;
 }
 
 .stat-number {
-  font-size: 2rem;
+  font-family: var(--font-display);
+  font-size: 28px;
   font-weight: 700;
-  color: black;
+  color: var(--texto);
+  line-height: 1;
 }
 
 /* Filtros */
 .mis-postulaciones-filtros {
   display: flex;
   gap: 8px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   flex-wrap: wrap;
-  color: black;
 }
 
-
 .filtro-btn {
-  padding: 8px 16px;
-  border: 1px solid var(--gris-1);
-  border-radius: 20px;
-  background: white;
+  padding: 6px 14px;
+  border: 1px solid var(--gris-borde);
+  border-radius: 99px;
+  background: var(--gris-card);
   color: var(--gris-2);
-  font-size: 0.875rem;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
-  color: black;
+  transition: all 0.2s ease;
 }
 
 .filtro-btn:hover {
-  border-color: var(--azul-1);
-  color: var(--azul-1);
+  border-color: var(--azul);
+  color: var(--azul);
+  background: var(--azul-light);
 }
 
 .filtro-btn.active {
-  background: rgb(229, 229, 255);
-  border-color: var(--azul-1);
-  color: rgb(71, 71, 71);
+  background: var(--azul-light);
+  border-color: var(--azul);
+  color: var(--azul);
 }
 
 /* Lista de postulaciones */
 .mis-postulaciones-lista {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .postulacion-card {
-  background: white;
-  border: 1px solid var(--gris-1);
-  border-radius: 8px;
+  background: var(--gris-card);
+  border: 1px solid var(--gris-borde);
+  border-radius: var(--radius-lg);
   overflow: hidden;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .postulacion-card:hover {
-  border-color: var(--azul-1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: var(--azul);
+  box-shadow: 0 4px 20px rgba(99,102,241,0.1);
 }
 
 .postulacion-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
-  border-bottom: 1px solid var(--gris-1);
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--gris-borde);
   gap: 16px;
 }
 
@@ -125,10 +132,11 @@
 
 .empresa-logo {
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
-  background: var(--gris-1);
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(99,102,241,0.08);
+  border: 1px solid rgba(255,255,255,0.06);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -142,9 +150,9 @@
 }
 
 .logo-placeholder {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--azul-1);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--azul);
 }
 
 .empresa-info {
@@ -153,7 +161,7 @@
 
 .empresa-nombre {
   margin: 0;
-  font-size: 0.875rem;
+  font-size: 12px;
   font-weight: 600;
   color: var(--gris-2);
   text-transform: uppercase;
@@ -162,9 +170,9 @@
 
 .oferta-titulo {
   margin: 4px 0 0 0;
-  font-size: 1rem;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--negro);
+  color: var(--texto);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -175,23 +183,20 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
+  padding: 6px 12px;
   background: transparent;
   color: var(--rojo);
   border: 1px solid var(--rojo);
-  border-radius: 20px;
-  font-size: 0.8rem;
+  border-radius: 99px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  pointer-events: auto;
-  z-index: 1;
-  position: relative;
+  transition: all 0.2s ease;
 }
 
 .btn-retirar:hover {
   background: var(--rojo);
-  color: white;
+  color: #fff;
 }
 
 .btn-retirar:disabled {
@@ -208,37 +213,37 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 12px;
-  border-radius: 20px;
-  font-size: 0.875rem;
+  padding: 6px 12px;
+  border-radius: 99px;
+  font-size: 12px;
   font-weight: 600;
   flex-shrink: 0;
   white-space: nowrap;
 }
 
 .estado-pendiente {
-  background: #FEF3C7;
-  color: #92400E;
+  background: rgba(245,158,11,0.12);
+  color: #FBBF24;
 }
 
 .estado-revision {
-  background: #BFDBFE;
-  color: #1E40AF;
+  background: rgba(99,102,241,0.12);
+  color: #818CF8;
 }
 
 .estado-aceptada {
-  background: #BBEAD5;
-  color: #065F46;
+  background: rgba(16,185,129,0.12);
+  color: #34D399;
 }
 
 .estado-rechazada {
-  background: #FECACA;
-  color: #7F1D1D;
+  background: rgba(239,68,68,0.12);
+  color: #FCA5A5;
 }
 
 .estado-contratado {
-  background: #D1D5DB;
-  color: #1F2937;
+  background: rgba(255,255,255,0.06);
+  color: #9CA3AF;
 }
 
 .estado-badge svg {
@@ -248,7 +253,7 @@
 
 /* Card Body */
 .postulacion-card-body {
-  padding: 16px;
+  padding: 16px 18px;
 }
 
 .oferta-detalles {
@@ -265,7 +270,7 @@
 }
 
 .detalle-label {
-  font-size: 0.75rem;
+  font-size: 11px;
   font-weight: 600;
   color: var(--gris-2);
   text-transform: uppercase;
@@ -273,8 +278,8 @@
 }
 
 .detalle-valor {
-  font-size: 0.95rem;
-  color: var(--negro);
+  font-size: 14px;
+  color: var(--texto-2);
 }
 
 .detalle-valor.capitalize {
@@ -285,13 +290,13 @@
   display: flex;
   gap: 24px;
   padding-top: 12px;
-  border-top: 1px solid var(--gris-1);
+  border-top: 1px solid var(--gris-borde);
   flex-wrap: wrap;
 }
 
 .timestamp {
   margin: 0;
-  font-size: 0.85rem;
+  font-size: 13px;
   display: flex;
   gap: 8px;
 }
@@ -302,17 +307,17 @@
 }
 
 .timestamp .valor {
-  color: var(--negro);
+  color: var(--texto);
   font-weight: 500;
 }
 
 /* Card Footer */
 .postulacion-card-footer {
-  padding: 12px 16px;
-  background: var(--gris-0);
-  border-top: 1px solid var(--gris-1);
+  padding: 12px 18px;
+  background: rgba(255,255,255,0.02);
+  border-top: 1px solid var(--gris-borde);
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
   justify-content: flex-start;
 }
@@ -324,22 +329,23 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: var(--azul-1);
-  color: white;
-  border-radius: 4px;
+  background: var(--azul);
+  color: #fff;
+  border-radius: var(--radius-md);
   text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 600;
-  transition: all 0.2s;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
   flex: 1;
-  min-width: 150px;
+  min-width: 140px;
   justify-content: center;
+  border: none;
 }
 
 .btn-ver-oferta:hover,
 .btn-chat-oferta:hover,
 .btn-chat-empresa:hover {
-  background: var(--azul-2);
+  background: var(--azul-hover);
   text-decoration: none;
 }
 
@@ -356,42 +362,45 @@
 }
 
 .btn-chat-empresa:hover {
-  background: #17A06B;
+  background: #059669;
 }
 
 /* Empty State */
 .empty-state {
   text-align: center;
   padding: 60px 24px;
-  background: var(--gris-0);
-  border-radius: 8px;
+  background: var(--gris-card);
+  border: 1px solid var(--gris-borde);
+  border-radius: var(--radius-lg);
 }
 
 .empty-title {
-  font-size: 1.25rem;
+  font-size: 18px;
   font-weight: 600;
-  color: var(--negro);
+  color: var(--texto);
   margin: 0 0 8px 0;
 }
 
 .empty-subtitle {
   color: var(--gris-2);
   margin: 0 0 24px 0;
+  font-size: 14px;
 }
 
 .empty-action {
   display: inline-block;
   padding: 10px 20px;
-  background: var(--azul-1);
-  color: white;
-  border-radius: 4px;
+  background: var(--azul);
+  color: #fff;
+  border-radius: var(--radius-md);
   text-decoration: none;
-  font-weight: 600;
-  transition: all 0.2s;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
 
 .empty-action:hover {
-  background: var(--azul-2);
+  background: var(--azul-hover);
   text-decoration: none;
 }
 
@@ -402,7 +411,7 @@
   }
 
   .mis-postulaciones-header h1 {
-    font-size: 1.5rem;
+    font-size: 22px;
   }
 
   .postulacion-card-header {
@@ -426,5 +435,7 @@
   .mis-postulaciones-filtros {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 4px;
   }
 }

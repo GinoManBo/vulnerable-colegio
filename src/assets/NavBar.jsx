@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { notificacionesAPI, busquedaAPI, mensajesAPI } from '../api';
+import { notificacionesAPI, busquedaAPI, mensajesAPI, getMediaUrl } from '../api';
 import './navbar.css';
 
 function IcoHome()   { return <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>; }
@@ -159,9 +159,9 @@ export default function NavBar({ usuario, onLogout }) {
 
         <Link to="/" className="navbar-logo">
           <div className="logo-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6L21 9 12 3z"/>
+              <path d="M12 12L7.5 9.82M12 12l4.5-2.18M12 12v9"/>
             </svg>
           </div>
           <span className="logo-text">Centro Educacional Cardenal José María Caro</span>
@@ -196,7 +196,9 @@ export default function NavBar({ usuario, onLogout }) {
                   <p className="search-section-label">Empresas</p>
                   {resultados.empresas.map(e => (
                     <Link key={e.id} to={`/perfil/${e.id}`} className="search-item" onClick={() => { setShowSearch(false); setBusqueda(''); }}>
-                      <div className="search-item-avatar empresa">{e.nombre[0]}</div>
+                      <div className="search-item-avatar empresa">
+                        {e.logo ? <img src={getMediaUrl(e.logo)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : e.nombre[0]}
+                      </div>
                       <div>
                         <p className="search-item-nombre">{e.nombre}</p>
                         <p className="search-item-sub">{e.rubro || e.ciudad}</p>
@@ -210,7 +212,9 @@ export default function NavBar({ usuario, onLogout }) {
                   <p className="search-section-label">Estudiantes</p>
                   {resultados.usuarios.map(u => (
                     <Link key={u.id} to={`/perfil/${u.id}`} className="search-item" onClick={() => { setShowSearch(false); setBusqueda(''); }}>
-                      <div className="search-item-avatar estudiante">{u.nombre[0]}</div>
+                      <div className="search-item-avatar estudiante">
+                        {u.foto ? <img src={getMediaUrl(u.foto)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : u.nombre[0]}
+                      </div>
                       <div>
                         <p className="search-item-nombre">{u.nombre}</p>
                         <p className="search-item-sub">{u.especialidad || u.ciudad}</p>
@@ -292,7 +296,7 @@ export default function NavBar({ usuario, onLogout }) {
             >
               <div className="avatar" style={{ width: 34, height: 34, fontSize: 14 }}>
                 {usuario?.foto ? (
-                  <img src={usuario.foto} alt="perfil" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }} />
+                  <img src={getMediaUrl(usuario.foto)} alt="perfil" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover' }} />
                 ) : (
                   <span>{usuario?.nombre?.[0] ?? 'U'}</span>
                 )}
@@ -305,7 +309,11 @@ export default function NavBar({ usuario, onLogout }) {
                 <div className="dropdown-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <div className="avatar" style={{ width: 40, height: 40, fontSize: 16 }}>
-                      {usuario?.nombre?.[0] ?? 'U'}
+                      {usuario?.foto ? (
+                        <img src={getMediaUrl(usuario.foto)} alt="perfil" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : (
+                        <span>{usuario?.nombre?.[0] ?? 'U'}</span>
+                      )}
                     </div>
                     <div>
                       <p style={{ fontWeight: 500, fontSize: 14 }}>{usuario?.nombre ?? 'Usuario'}</p>

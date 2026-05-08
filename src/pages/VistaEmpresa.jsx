@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ofertasAPI, perfilAPI, mensajesAPI } from '../api';
+import { ofertasAPI, perfilAPI, mensajesAPI, getMediaUrl } from '../api';
 import PostulantesModal from '../components/PostulantesModal';
 import OnlineStatus from '../components/OnlineStatus';
 import './VistaEmpresa.css';
@@ -277,6 +277,7 @@ export default function VistaEmpresa({ usuario }) {
 
   const navigate = useNavigate();
   const [enviandoMsgPost, setEnviandoMsgPost] = useState({});
+  const [abriendoChat, setAbriendoChat] = useState({});
 
   async function enviarMensajePost(usuarioId) {
     if (!usuarioId || enviandoMsgPost[usuarioId]) return;
@@ -290,6 +291,20 @@ export default function VistaEmpresa({ usuario }) {
       alert(`Error: ${err.message}`);
     } finally {
       setEnviandoMsgPost(p => ({ ...p, [usuarioId]: false }));
+    }
+  }
+
+  async function abrirChatGrupo(ofertaId) {
+    if (abriendoChat[ofertaId]) return;
+    setAbriendoChat(p => ({ ...p, [ofertaId]: true }));
+    try {
+      const grupo = await mensajesAPI.grupoOferta(ofertaId);
+      window.dispatchEvent(new Event('recargar-conversaciones'));
+      navigate('/mensajes', { state: { convId: grupo._id } });
+    } catch (err) {
+      alert('No hay chat grupal para esta oferta. Acepta un postulante primero.');
+    } finally {
+      setAbriendoChat(p => ({ ...p, [ofertaId]: false }));
     }
   }
 
@@ -374,6 +389,9 @@ export default function VistaEmpresa({ usuario }) {
                   </div>
                   <div className="emp-oferta-acciones">
                     <div className="emp-oferta-btns">
+                      <button className="emp-btn" title="Chat grupal" onClick={()=>abrirChatGrupo(o._id)} disabled={abriendoChat[o._id]}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                      </button>
                       <button className="emp-btn" title="Ver postulantes" onClick={()=>setModalPostulantes({id: o._id, titulo: o.titulo})}><IcoUsers/></button>
                       <button className="emp-btn" title="Editar" onClick={()=>setEditando(o)}><IcoEdit/></button>
                       <button type="button" className={`emp-btn ${o.activo?'danger':''}`} title={o.activo?'Cerrar oferta':'Reactivar'} onClick={() => toggleActivo(o._id,o.activo)}>{o.activo?<IcoOff/>:<IcoOn/>}</button>
@@ -403,16 +421,19 @@ export default function VistaEmpresa({ usuario }) {
             <div className="emp-post-tabla">
               {postFiltrados.map(p=>{
                 const est = p.estudiante_id ?? {};
+                const usr = est.usuario_id ?? {};
                 const cfg = ESTADO_CFG[p.estado] ?? ESTADO_CFG.pendiente;
                 return (
                   <div key={p._id} className="emp-post-fila card">
-                    <div className="emp-post-av">{est.nombre?.[0]??'E'}</div>
+                    <div className="emp-post-av">
+                      {est.foto_perfil_url ? <img src={getMediaUrl(est.foto_perfil_url)} alt="" style={{width:'100%',height:'100%',borderRadius:'50%',objectFit:'cover'}} /> : (usr.nombre?.[0]??'E')}
+                    </div>
                     <div className="emp-post-info">
                       <p className="emp-post-nombre">
-                        {est.nombre} {est.apellido}
-                        <OnlineStatus usuarioId={est.usuario_id?._id} size={9} />
+                        {usr.nombre} {usr.apellido}
+                        <OnlineStatus usuarioId={usr._id} size={9} style={{ marginLeft: 5 }} />
                       </p>
-                      <p className="emp-post-sub">{est.email} · {p._ofertaTitulo}</p>
+                      <p className="emp-post-sub">{usr.email} · {p._ofertaTitulo}</p>
                     </div>
                     <span className={`badge ${cfg.cls}`}>{cfg.label}</span>
                     <div className="emp-post-actions">

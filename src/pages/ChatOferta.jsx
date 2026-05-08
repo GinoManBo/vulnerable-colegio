@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ofertasAPI, mensajesAPI } from '../api';
+import { ofertasAPI, mensajesAPI, getMediaUrl } from '../api';
 import './ChatOferta.css';
 
 function fmt(n) { return '$' + Math.round(n).toLocaleString('es-CL'); }
@@ -111,7 +111,7 @@ export default function ChatOferta({ usuario }) {
             <div className="chat-oferta-info">
               <div className="chat-oferta-logo">
                 {empresa.logo_url
-                  ? <img src={`http://localhost:5000${empresa.logo_url}`} alt="logo" />
+                  ? <img src={getMediaUrl(empresa.logo_url)} alt="logo" />
                   : <span>{empresa.nombre_empresa?.[0] ?? 'E'}</span>
                 }
               </div>

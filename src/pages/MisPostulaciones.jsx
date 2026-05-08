@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { perfilAPI } from '../api';
+import { perfilAPI, getMediaUrl } from '../api';
 import './MisPostulaciones.css';
 
 function IcoCheck() {
@@ -195,7 +195,7 @@ export default function MisPostulaciones({ usuario }) {
                   <div className="postulacion-empresa">
                     <div className="empresa-logo">
                       {empresa?.logo_url ? (
-                        <img src={empresa.logo_url} alt={empresa.nombre_empresa} />
+                        <img src={getMediaUrl(empresa.logo_url)} alt={empresa.nombre_empresa} />
                       ) : (
                         <div className="logo-placeholder">{empresa?.nombre_empresa?.[0] || 'E'}</div>
                       )}

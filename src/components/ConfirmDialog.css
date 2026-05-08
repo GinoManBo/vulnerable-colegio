@@ -15,7 +15,7 @@
 }
 
 .confirm-dialog {
-  background: white;
+  background: var(--gris-card);
   border-radius: var(--radius-lg);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   max-width: 400px;

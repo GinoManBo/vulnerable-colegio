@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ofertasAPI } from '../api';
+import { ofertasAPI, getMediaUrl } from '../api';
 import ConfirmDialog from './ConfirmDialog';
 import './JobCard.css';
 
@@ -129,6 +129,7 @@ export default function JobCard({
   usuario,
   onPostuladoExito,
   yaPostulado = false,
+  estadoPostulacion,
 }) {
   const [guardada, setGuardada] = useState(false);
   const [cargando, setCargando] = useState(false);
@@ -238,7 +239,7 @@ export default function JobCard({
           <div className="job-empresa-logo">
             {empresa.logo_url ? (
               <img
-                src={empresa.logo_url}
+                src={getMediaUrl(empresa.logo_url)}
                 alt={empresa.nombre_empresa}
               />
             ) : (
@@ -334,10 +335,21 @@ export default function JobCard({
               usuario?.perfilPendiente
                 ? <div className="btn-postulado btn-pendiente" title="Tu perfil está pendiente de verificación">Pendiente</div>
                 : (yaPostulado || postuladoLocal) ? (
-                  <div className="btn-postulado" title="Ya postulaste a esta oferta">
-                    <IcoCheck />
-                    Postulado
-                  </div>
+                  estadoPostulacion === 'aceptada' ? (
+                    <div className="btn-postulado btn-aceptado" title="Fuiste aceptado en esta oferta">
+                      <IcoCheck />
+                      Aceptado
+                    </div>
+                  ) : estadoPostulacion === 'rechazada' ? (
+                    <div className="btn-postulado btn-rechazado" title="Tu postulación fue rechazada">
+                      Rechazado
+                    </div>
+                  ) : (
+                    <div className="btn-postulado" title="Ya postulaste a esta oferta">
+                      <IcoCheck />
+                      Postulado
+                    </div>
+                  )
                 ) : (
                   <button
                     type="button"
