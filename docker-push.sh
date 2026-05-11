@@ -11,7 +11,7 @@
 
 set -e
 
-DOCKER_USER="ginomanbo"
+DOCKER_USER="ginolxdlol"
 TAG=${1:-latest}
 
 echo "═══════════════════════════════════════════════"

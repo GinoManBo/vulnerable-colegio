@@ -10,7 +10,7 @@
 
 services:
   frontend:
-    image: ginomanbo/vulnerable-colegio-frontend:latest
+    image: ginolxdlol/vulnerable-colegio-frontend:latest
     ports:
       - "80:80"
     depends_on:
@@ -20,7 +20,7 @@ services:
       - app-network
 
   backend:
-    image: ginomanbo/vulnerable-colegio-backend:latest
+    image: ginolxdlol/vulnerable-colegio-backend:latest
     ports:
       - "5000:5000"
     env_file:
