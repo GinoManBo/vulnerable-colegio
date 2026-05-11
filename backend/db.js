@@ -5,7 +5,7 @@ dotenv.config();
 
 export async function connectDB() {
   try {
-    const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/vulnerable-colegio';
+    const mongoUri = process.env.MONGO_URI || 'mongodb://mongo:27017/colegio'; //  mongodb://localhost:27017/vulnerable-colegio
     
     await mongoose.connect(mongoUri);
     
