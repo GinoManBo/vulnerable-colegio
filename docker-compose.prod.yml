@@ -1,11 +1,7 @@
 # ─────────────────────────────────────────────
-#  PRODUCTION: Usa imágenes de Docker Hub
-# ─────────────────────────────────────────────
-# Uso:
-#   docker-compose -f docker-compose.prod.yml up -d
-#
-# Asegúrate de configurar las variables de entorno
-# en un archivo .env antes de ejecutar.
+#  PRODUCCION: Todo listo para Docker Hub
+#  No necesitas archivos adicionales.
+#  Solo Docker Compose y este archivo.
 # ─────────────────────────────────────────────
 
 services:
@@ -23,12 +19,13 @@ services:
     image: ginolxdlol/vulnerable-colegio-backend:latest
     ports:
       - "5000:5000"
-    env_file:
-      - ./backend/.env
     environment:
       MONGO_URI: mongodb://mongo:27017/vulnerable-colegio
       PORT: 5000
       NODE_ENV: production
+      # Cambia esto por una clave segura en produccion real
+      JWT_SECRET: ${JWT_SECRET:-vulnerable_colegio_secret_key_change_me}
+      CLIENT_URL: http://localhost
     depends_on:
       - mongo
     restart: unless-stopped
