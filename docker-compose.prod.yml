@@ -1,9 +1,18 @@
+# ─────────────────────────────────────────────
+#  PRODUCTION: Usa imágenes de Docker Hub
+# ─────────────────────────────────────────────
+# Uso:
+#   docker-compose -f docker-compose.prod.yml up -d
+#
+# Asegúrate de configurar las variables de entorno
+# en un archivo .env antes de ejecutar.
+# ─────────────────────────────────────────────
+
 services:
   frontend:
-    build: .
     image: ginomanbo/vulnerable-colegio-frontend:latest
     ports:
-      - "8080:80"
+      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped
@@ -11,7 +20,6 @@ services:
       - app-network
 
   backend:
-    build: ./backend
     image: ginomanbo/vulnerable-colegio-backend:latest
     ports:
       - "5000:5000"
@@ -26,6 +34,8 @@ services:
     restart: unless-stopped
     networks:
       - app-network
+    volumes:
+      - uploads_data:/app/uploads
 
   mongo:
     image: mongo:7
@@ -39,6 +49,7 @@ services:
 
 volumes:
   mongo_data:
+  uploads_data:
 
 networks:
   app-network:

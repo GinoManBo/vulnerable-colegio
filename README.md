@@ -160,6 +160,64 @@ Estudiantes de **Ingeniería en Informática**
 
 ---
 
+## Docker
+
+### Desarrollo local
+
+```bash
+# Construir y levantar todo (frontend + backend + mongo)
+docker-compose up --build
+
+# Frontend: http://localhost:8080
+# Backend API: http://localhost:5000/api
+# MongoDB: localhost:27017
+```
+
+### Producción con Docker Hub
+
+Las imágenes oficiales están publicadas en Docker Hub:
+
+| Servicio | Imagen |
+|----------|--------|
+| Frontend | `ginomanbo/vulnerable-colegio-frontend:latest` |
+| Backend | `ginomanbo/vulnerable-colegio-backend:latest` |
+
+```bash
+# 1. Login en Docker Hub
+docker login
+
+# 2. Desplegar con docker-compose.prod.yml
+docker-compose -f docker-compose.prod.yml up -d
+
+# 3. Ver logs
+docker-compose -f docker-compose.prod.yml logs -f
+```
+
+### Build y push manual
+
+```bash
+# Hacer ejecutable el script
+chmod +x docker-push.sh
+
+# Build y push con tag "latest"
+./docker-push.sh
+
+# O con un tag específico (ej: v1.0.0)
+./docker-push.sh v1.0.0
+```
+
+### Variables de entorno para producción
+
+Crea un archivo `backend/.env` con:
+
+```env
+MONGO_URI=mongodb://mongo:27017/vulnerable-colegio
+JWT_SECRET=tu_secreto_super_seguro
+PORT=5000
+NODE_ENV=production
+CLIENT_URL=http://localhost:8080
+```
+
 ## Despliegue
 
 Ver [DEPLOY.md](DEPLOY.md) para guía de despliegue en producción con Docker y MongoDB Atlas.

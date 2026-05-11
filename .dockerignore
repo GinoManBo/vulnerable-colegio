@@ -3,11 +3,30 @@ dist
 .git
 .gitignore
 README.md
-Dockerfile
-docker-compose.yml
+*.md
 .env
 .env.example
-*.md
 .vscode
 .idea
 uploads
+
+# Docker files
+docker-compose.yml
+docker-compose.prod.yml
+docker-push.sh
+Dockerfile
+.dockerignore
+backend/Dockerfile
+backend/.dockerignore
+
+# Docs
+docs/
+
+# Tests
+*.test.js
+*.spec.js
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db

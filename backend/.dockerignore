@@ -5,3 +5,19 @@ node_modules
 .env.example
 *.md
 uploads
+
+# Docker files
+Dockerfile
+.dockerignore
+
+# Docs
+docs/
+
+# Tests
+*.test.js
+*.spec.js
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
