@@ -351,6 +351,21 @@ app.get('/api/perfil/mis-postulaciones', auth, soloRoles('estudiante'), async (r
   }
 });
 
+app.delete('/api/perfil/postulaciones/:postId/retirar', auth, soloRoles('estudiante'), async (req, res) => {
+  try {
+    const perfil = await PerfilEstudiante.findOne({ usuario_id: req.usuario._id });
+    if (!perfil) return res.status(404).json({ error: 'Perfil no encontrado' });
+
+    const post = await Postulacion.findOne({ _id: req.params.postId, estudiante_id: perfil._id });
+    if (!post) return res.status(404).json({ error: 'Postulación no encontrada' });
+
+    await Postulacion.deleteOne({ _id: req.params.postId });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Heartbeat: actualizar ultimaConexion explícitamente
 app.post('/api/auth/heartbeat', auth, async (req, res) => {
   try {

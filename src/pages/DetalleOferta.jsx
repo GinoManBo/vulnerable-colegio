@@ -52,9 +52,11 @@ export default function DetalleOferta({ usuario }) {
           const postId = typeof yaPostulado._id === 'string' ? yaPostulado._id : yaPostulado._id?.toString();
           setPostulado(true);
           setPostulacionId(postId);
+          setEstadoPostulacion(yaPostulado.estado || null);
         } else {
           setPostulado(false);
           setPostulacionId(null);
+          setEstadoPostulacion(null);
         }
       }
     }).catch(e => setError(e.message))
@@ -185,18 +187,32 @@ export default function DetalleOferta({ usuario }) {
                   postulado
                     ? (
                       <>
-                        <div className="dof-postulado">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--verde)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                          Postulado
-                        </div>
-                        <button
-                          className="dof-retirar-btn"
-                          onClick={retirarPostulacion}
-                          disabled={retirando}
-                          title="Retirar postulación"
-                        >
-                          {retirando ? 'Retirando...' : 'Retirar postulación'}
-                        </button>
+                        {estadoPostulacion === 'aceptada' ? (
+                          <div className="dof-postulado" style={{background:'rgba(29,182,122,0.12)',color:'#1DB67A',border:'1px solid rgba(29,182,122,0.3)'}}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1DB67A" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Aceptado
+                          </div>
+                        ) : estadoPostulacion === 'rechazada' ? (
+                          <div className="dof-postulado" style={{background:'rgba(239,68,68,0.12)',color:'#EF4444',border:'1px solid rgba(239,68,68,0.3)'}}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            Rechazado
+                          </div>
+                        ) : (
+                          <div className="dof-postulado">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--verde)" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            Postulado
+                          </div>
+                        )}
+                        {estadoPostulacion !== 'aceptada' && estadoPostulacion !== 'contratado' && (
+                          <button
+                            className="dof-retirar-btn"
+                            onClick={retirarPostulacion}
+                            disabled={retirando}
+                            title="Retirar postulación"
+                          >
+                            {retirando ? 'Retirando...' : 'Retirar postulación'}
+                          </button>
+                        )}
                       </>
                     )
                     : <button className={`btn-verde dof-postular-btn ${postulando?'loading':''}`} disabled={postulando||!oferta.activo||perfilPendiente} onClick={postular} title={perfilPendiente?'Tu perfil está pendiente de verificación':''}>
