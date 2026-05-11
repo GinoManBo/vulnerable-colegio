@@ -162,60 +162,50 @@ Estudiantes de **Ingeniería en Informática**
 
 ## Docker
 
-### Desarrollo local
+### 🚀 Despliegue en 1 comando (Recomendado)
 
-```bash
-# Construir y levantar todo (frontend + backend + mongo)
-docker-compose up --build
-
-# Frontend: http://localhost:8080
-# Backend API: http://localhost:5000/api
-# MongoDB: localhost:27017
+**Windows (CMD):**
+```cmd
+curl -fsSL https://raw.githubusercontent.com/GinoManBo/vulnerable-colegio/main/deploy.bat -o deploy.bat && deploy.bat
 ```
 
-### Producción con Docker Hub
+**Linux / macOS:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/GinoManBo/vulnerable-colegio/main/install.sh | bash
+```
 
-Las imágenes oficiales están publicadas en Docker Hub:
+Eso es **todo**. El script descarga todo automáticamente desde Docker Hub y levanta la app completa.
+
+### Despliegue manual (3 comandos)
+
+Si prefieres hacerlo paso a paso:
+
+```bash
+# 1. Crear carpeta
+mkdir ~/vulnerable-colegio && cd ~/vulnerable-colegio
+
+# 2. Descargar configuración
+curl -fsSL https://raw.githubusercontent.com/GinoManBo/vulnerable-colegio/main/docker-compose.prod.yml -o docker-compose.yml
+
+# 3. Levantar
+docker compose up -d
+```
+
+### Imágenes de Docker Hub
 
 | Servicio | Imagen |
 |----------|--------|
-| Frontend | `ginomanbo/vulnerable-colegio-frontend:latest` |
-| Backend | `ginomanbo/vulnerable-colegio-backend:latest` |
+| Frontend | `ginolxdlol/vulnerable-colegio-frontend:latest` |
+| Backend | `ginolxdlol/vulnerable-colegio-backend:latest` |
+
+### Desarrollo local (build desde código)
 
 ```bash
-# 1. Login en Docker Hub
-docker login
+# Construir y levantar todo desde el código fuente
+docker compose up --build
 
-# 2. Desplegar con docker-compose.prod.yml
-docker-compose -f docker-compose.prod.yml up -d
-
-# 3. Ver logs
-docker-compose -f docker-compose.prod.yml logs -f
-```
-
-### Build y push manual
-
-```bash
-# Hacer ejecutable el script
-chmod +x docker-push.sh
-
-# Build y push con tag "latest"
-./docker-push.sh
-
-# O con un tag específico (ej: v1.0.0)
-./docker-push.sh v1.0.0
-```
-
-### Variables de entorno para producción
-
-Crea un archivo `backend/.env` con:
-
-```env
-MONGO_URI=mongodb://mongo:27017/vulnerable-colegio
-JWT_SECRET=tu_secreto_super_seguro
-PORT=5000
-NODE_ENV=production
-CLIENT_URL=http://localhost:8080
+# Frontend: http://localhost:8080
+# Backend API: http://localhost:5000/api
 ```
 
 ## Despliegue
