@@ -198,6 +198,11 @@ docker compose up -d
 | Frontend | `ginolxdlol/vulnerable-colegio-frontend:latest` |
 | Backend | `ginolxdlol/vulnerable-colegio-backend:latest` |
 
+### Recomendación
+```
+En lo personal recomiendo utilizar clonar el repositorio con Docker Desktop abierto, y ejecutar el Batch de Deploy que se encuentra dentro del proyecto.
+```
+
 ### Desarrollo local
 
 ```bash
