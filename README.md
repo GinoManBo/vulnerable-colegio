@@ -162,7 +162,7 @@ Estudiantes de **Ingeniería en Informática**
 
 ## Docker
 
-### 🚀 Despliegue en 1 comando (Recomendado)
+### Despliegue
 
 **Windows (CMD):**
 ```cmd
@@ -176,7 +176,7 @@ curl -fsSL https://raw.githubusercontent.com/GinoManBo/vulnerable-colegio/main/i
 
 Eso es **todo**. El script descarga todo automáticamente desde Docker Hub y levanta la app completa.
 
-### Despliegue manual (3 comandos)
+### Despliegue manual
 
 Si prefieres hacerlo paso a paso:
 
@@ -198,7 +198,7 @@ docker compose up -d
 | Frontend | `ginolxdlol/vulnerable-colegio-frontend:latest` |
 | Backend | `ginolxdlol/vulnerable-colegio-backend:latest` |
 
-### Desarrollo local (build desde código)
+### Desarrollo local
 
 ```bash
 # Construir y levantar todo desde el código fuente
